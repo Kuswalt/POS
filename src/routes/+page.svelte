@@ -40,7 +40,7 @@
                     <div class="form-group mb-3">
                         <input type="password" class="form-control form-control-sm w-full rounded-full" id="password" bind:value={password} placeholder="Password">
                     </div>
-                    <button type="button" class="btn w-full rounded-full bg-[#E57C23] text-white py-2" on:click={login}>Login</button>
+                    <button type="button" class="btn w-full rounded-full bg-[#47cb50] text-white py-2" on:click={login}>Login</button>
                 </form>
                 <div class="account-section mt-4 text-right">
                     <a href="/register" class="new-account-link text-[#025464] font-bold text-sm">Create a new account</a>

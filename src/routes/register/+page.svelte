@@ -6,7 +6,7 @@
 
     async function register() {
         try {
-            const response = await fetch('http://localhost/Laz-Bean-Cafe-POS/api/routes.php?request=add-account', {
+            const response = await fetch('http://localhost/POS/api/routes.php?request=add-account', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -57,7 +57,7 @@
                 <div class="form-group mb-3">
                     <input type="password" class="form-control form-control-sm w-full rounded-full" id="password" bind:value={password} placeholder=" Put Password">
                 </div>
-                <button type="button" class="btn w-full rounded-full bg-[#E57C23] text-white py-2" on:click={register}>Create</button>
+                <button type="button" class="btn w-full rounded-full bg-[#41b745] text-white py-2" on:click={register}>Create</button>
             </form>
             <div class="account-section mt-4 text-right">
                 <a href="/" class="new-account-link text-[#025464] font-bold text-sm">Back to Login</a>

@@ -14,10 +14,12 @@ require_once __DIR__ . '/config.php';
 require_once 'modules/post.php';
 require_once 'modules/update.php';
 require_once 'modules/delete.php';
+require_once 'modules/get.php';
 
 $post = new Post($conn);
 $update = new Update($conn);
 $delete = new Delete($conn);
+$get = new Get($conn);
 
 if (isset($_REQUEST['request'])) {
     $request = explode('/', $_REQUEST['request']);
@@ -30,20 +32,63 @@ if (isset($_REQUEST['request'])) {
 try {
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'POST':
-            $data = json_decode(file_get_contents("php://input"), true);
             switch ($request[0]) {
-                case 'add-account':
-                    echo json_encode($post->registerUser($data));
+                case 'add-menu-item':
+                    // Handle form data for menu items
+                    $data = array(
+                        'name' => $_POST['name'] ?? null,
+                        'image' => $_FILES['image']['name'] ?? null,
+                        'price' => $_POST['price'] ?? null,
+                        'category' => $_POST['category'] ?? null
+                    );
+                    
+                    // Handle file upload
+                    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                        $uploadDir = '../uploads/';
+                        if (!file_exists($uploadDir)) {
+                            mkdir($uploadDir, 0777, true);
+                        }
+                        
+                        $fileName = time() . '_' . $_FILES['image']['name'];
+                        move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $fileName);
+                        $data['image'] = $fileName;
+                    }
+                    
+                    echo json_encode($post->addMenuItem($data));
                     break;
-                case 'login':
-                    echo json_encode($post->loginUser($data));
+                    
+                default:
+                    // For other POST requests, use JSON
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    switch ($request[0]) {
+                        case 'add-account':
+                            echo json_encode($post->registerUser($data));
+                            break;
+                        case 'login':
+                            echo json_encode($post->loginUser($data));
+                            break;
+                        case 'add-item-stock':
+                            echo json_encode($post->addItemStock($data));
+                            break;
+                        default:
+                            echo json_encode(["error" => "This is forbidden"]);
+                            http_response_code(403);
+                            break;
+                    }
                     break;
-                case 'add-item-stock':
-                    echo json_encode($post->addItemStock($data));
+            }
+            break;
+        case 'GET':
+            switch ($request[0]) {
+                case 'get-menu-items':
+                    echo json_encode($get->getMenuItems());
+                    break;
+                case 'get-items':
+                    echo json_encode($get->getItems());
                     break;
                 default:
-                    echo json_encode(["error" => "This is forbidden"]);
-                    http_response_code(403);
+                    echo json_encode(["error" => "Invalid GET request"]);
+                    http_response_code(404);
                     break;
             }
             break;
@@ -52,6 +97,9 @@ try {
             switch ($request[0]) {
                 case 'update-item-stock':
                     echo json_encode($update->updateItemStock($data));
+                    break;
+                case 'update-menu-item':
+                    echo json_encode($update->updateMenuItem($data));
                     break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);
@@ -64,6 +112,9 @@ try {
             switch ($request[0]) {
                 case 'delete-item-stock':
                     echo json_encode($delete->deleteItemStock($data));
+                    break;
+                case 'delete-menu-item':
+                    echo json_encode($delete->deleteMenuItem($data));
                     break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);

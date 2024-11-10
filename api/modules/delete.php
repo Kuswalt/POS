@@ -20,4 +20,20 @@ class Delete {
             return ["status" => false, "message" => "Failed to delete item stock: " . $e->getMessage()];
         }
     }
+
+    public function deleteMenuItem($data) {
+        global $conn;
+        $id = $data['product_id'];
+
+        $sql = "DELETE FROM product WHERE product_id = :id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':id', $id);
+
+        try {
+            $stmt->execute();
+            return ["status" => true, "message" => "Menu item deleted successfully"];
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => "Failed to delete menu item: " . $e->getMessage()];
+        }
+    }
 }
