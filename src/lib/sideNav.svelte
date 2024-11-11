@@ -39,7 +39,7 @@
         </a>
       </li>
     </ul>
-    <a href="/settings" target="_blank" rel="noreferrer" class="mt-auto mx-auto flex items-center justify-center text-green-200 hover:text-green-100 h-10 w-10 focus:outline-none" aria-label="Logout">
+    <a href="/settings" class="mt-auto mx-auto flex items-center justify-center text-green-200 hover:text-green-100 h-10 w-10 focus:outline-none" aria-label="Settings">
       <i class="fa-solid fa-gear"></i>
     </a>
   </div>
