@@ -2,9 +2,10 @@
   import SideNav from '$lib/sideNav.svelte';
   import Header from '$lib/header.svelte';
   import ItemCard from '$lib/itemCard.svelte';
+  import Cart from '../cart/+page.svelte';
   import { onMount } from 'svelte';
 
-  type Product = { id: number; name: string; image: string; price: string; category: string };
+  type Product = { id: number; name: string; image: string; price: number; category: string };
   type CartItem = Product & { quantity: number };
 
   let y = 0;
@@ -13,6 +14,7 @@
   let products: Product[] = [];
   let cartItems: CartItem[] = [];
   let selectedCategory = 'All';
+  let searchQuery = '';
 
   onMount(async () => {
     await fetchItems();
@@ -20,19 +22,48 @@
 
   async function fetchItems() {
     const response = await fetch('http://localhost/POS/api/routes.php?request=get-menu-items');
-    products = await response.json();
+    const data = await response.json();
+    products = data.map((p: any) => ({ ...p, price: Number(p.price) }));
   }
 
-  function addToCart(product: Product) {
+  async function addToCart(product: Product) {
     const existingItem = cartItems.find(item => item.id === product.id);
-    if (existingItem) {
-      cartItems = cartItems.map(item =>
-        item.id === product.id 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      );
-    } else {
-      cartItems = [...cartItems, { ...product, quantity: 1 }];
+    
+    try {
+        const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_id: product.id,
+                quantity: 1,
+                user_id: 1 // You should get this from your authentication system
+            })
+        });
+
+        const result = await response.json();
+        
+        if (result.status) {
+            if (existingItem) {
+                cartItems = cartItems.map(item => 
+                    item.id === product.id
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
+                );
+            } else {
+                const newItem: CartItem = {
+                    ...product,
+                    quantity: 1
+                };
+                cartItems = [...cartItems, newItem];
+            }
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error adding item to cart:', error);
+        alert('Failed to add item to cart');
     }
   }
 
@@ -56,9 +87,9 @@
     return cartItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
   }
 
-  $: filteredProducts = selectedCategory === 'All' 
-    ? products 
-    : products.filter(p => p.category === selectedCategory);
+  $: filteredProducts = products
+    .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
+    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   $: categories = ['All', ...new Set(products.map(p => p.category))];
 </script>
@@ -69,6 +100,16 @@
     <SideNav activeMenu="pos" />
     
     <div class="main-content">
+      <!-- Search Bar -->
+      <div class="search-bar">
+        <input
+          type="text"
+          bind:value={searchQuery}
+          placeholder="Search products..."
+          class="search-input"
+        />
+      </div>
+
       <!-- Category Filter -->
       <div class="category-filter">
         {#each categories as category}
@@ -82,42 +123,31 @@
       </div>
 
       <!-- Products Grid -->
-      <div class="products-section">
-        <div class="grid grid-cols-3 gap-4">
-          {#each filteredProducts as product}
-            <div class="product-card" on:click={() => addToCart(product)}>
-              <ItemCard {product} />
-            </div>
-          {/each}
+      <div class="products-container">
+        <div class="products-section">
+          <div class="grid grid-cols-3 gap-4">
+            {#each filteredProducts as product}
+              <div class="product-card" on:click={() => addToCart(product)}>
+                <ItemCard product={{
+                  id: product.id,
+                  name: product.name,
+                  image: product.image,
+                  price: product.price.toString(),
+                  category: product.category
+                }} />
+              </div>
+            {/each}
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Cart Section -->
-    <div class="cart-section">
-      <h2 class="cart-title">Order Summary</h2>
-      <div class="cart-items">
-        {#each cartItems as item}
-          <div class="cart-item">
-            <img src={item.image ? `uploads/${item.image}` : 'placeholder.jpg'} alt={item.name} class="cart-item-image" />
-            <div class="cart-item-details">
-              <h3>{item.name}</h3>
-              <p>₱{item.price}</p>
-              <div class="quantity-controls">
-                <button on:click={() => updateQuantity(item.id, item.quantity - 1)}>-</button>
-                <span>{item.quantity}</span>
-                <button on:click={() => updateQuantity(item.id, item.quantity + 1)}>+</button>
-              </div>
-            </div>
-            <button class="remove-btn" on:click={() => removeFromCart(item.id)}>×</button>
-          </div>
-        {/each}
-      </div>
-      <div class="cart-total">
-        <h3>Total: ₱{getTotal().toFixed(2)}</h3>
-        <button class="checkout-btn">Proceed to Checkout</button>
-      </div>
-    </div>
+    <Cart 
+      {cartItems} 
+      onUpdateQuantity={updateQuantity}
+      onRemoveFromCart={removeFromCart}
+      total={getTotal()}
+    />
   </div>
 </div>
 
@@ -132,7 +162,22 @@
   .main-content {
     flex: 1;
     padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .products-container {
+    flex: 1;
     overflow-y: auto;
+    min-height: 0; /* Important for flex child scrolling */
+    background: white;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .products-section {
+    padding: 1rem;
   }
 
   .category-filter {
@@ -157,12 +202,6 @@
     color: white;
   }
 
-  .products-section {
-    padding: 1rem;
-    background: white;
-    border-radius: 0.5rem;
-  }
-
   .product-card {
     cursor: pointer;
     transition: transform 0.2s;
@@ -172,57 +211,24 @@
     transform: translateY(-2px);
   }
 
-  .cart-section {
-    width: 400px;
-    background: white;
+  .search-bar {
     padding: 1rem;
-    border-left: 1px solid #e5e7eb;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .cart-title {
-    font-size: 1.5rem;
-    font-weight: bold;
+    background: white;
+    border-radius: 0.5rem;
     margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e5e7eb;
   }
 
-  .cart-items {
-    flex: 1;
-    overflow-y: auto;
+  .search-input {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-size: 1rem;
   }
 
-  .cart-item {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem;
-    border-bottom: 1px solid #e5e7eb;
-    gap: 1rem;
-  }
-
-  .cart-item-image {
-    width: 50px;
-    height: 50px;
-    object-fit: cover;
-    border-radius: 0.25rem;
-  }
-
-  .cart-item-details {
-    flex: 1;
-  }
-
-  .quantity-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .quantity-controls button {
-    padding: 0.5rem;
-    border-radius: 0.25rem;
-    border: none;
-    cursor: pointer;
+  .search-input:focus {
+    outline: none;
+    border-color: #47cb50;
+    box-shadow: 0 0 0 2px rgba(71, 203, 80, 0.2);
   }
 </style>

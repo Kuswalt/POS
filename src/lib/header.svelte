@@ -5,8 +5,8 @@
   // Tabs for navigation
   export let tabs = [
     { name: "Order", link: "/order" },
-    { name: "Sales", link: "/sales" },
     { name: "Inventory", link: "/inventory" },
+    { name: "Sales", link: "/sales" },
     
   ];
 
@@ -47,8 +47,8 @@
             <p class="font-afacad">{tab.name}</p>
           </a>
         {/each}
-        <a href="/contact" class="block px-4 py-2 text-white hover:text-green-300 duration-200 font-afacad">
-          Contact Us
+        <a href="/" class="block px-4 py-2 text-white hover:text-green-300 duration-200 font-afacad">
+          Log out
         </a>
       </div>
     {/if}

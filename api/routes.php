@@ -70,6 +70,12 @@ try {
                         case 'add-item-stock':
                             echo json_encode($post->addItemStock($data));
                             break;
+                        case 'add-to-cart':
+                            echo json_encode($post->addToCart($data));
+                            break;
+                        case 'create-order':
+                            echo json_encode($post->createOrder($data));
+                            break;
                         default:
                             echo json_encode(["error" => "This is forbidden"]);
                             http_response_code(403);

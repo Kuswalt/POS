@@ -131,5 +131,92 @@ class Post {
             return ["status" => false, "message" => "Failed to add menu item: " . $e->getMessage()];
         }
     }
+
+    public function addToCart($data) {
+        global $conn;
+        
+        if (!isset($data['product_id'], $data['quantity'], $data['user_id'])) {
+            return ["status" => false, "message" => "Missing required fields"];
+        }
+        
+        $product_id = $data['product_id'];
+        $quantity = $data['quantity'];
+        $user_id = $data['user_id'];
+        
+        // First, check if the product exists
+        $checkProduct = "SELECT product_id FROM product WHERE product_id = :product_id";
+        $stmt = $conn->prepare($checkProduct);
+        $stmt->bindParam(':product_id', $product_id);
+        $stmt->execute();
+        
+        if (!$stmt->fetch()) {
+            return ["status" => false, "message" => "Product not found"];
+        }
+        
+        $sql = "INSERT INTO cart (user_id, product_id, quantity) 
+                VALUES (:user_id, :product_id, :quantity)
+                ON DUPLICATE KEY UPDATE quantity = quantity + :quantity";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':user_id', $user_id);
+        $stmt->bindParam(':product_id', $product_id);
+        $stmt->bindParam(':quantity', $quantity);
+        
+        try {
+            $stmt->execute();
+            return ["status" => true, "message" => "Item added to cart successfully"];
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => "Failed to add item to cart: " . $e->getMessage()];
+        }
+    }
+
+    public function createOrder($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Create order
+            $sql = "INSERT INTO `order` (customer_id, order_date, total_amount, user_id, payment_status) 
+                    VALUES (:customer_id, NOW(), :total_amount, :user_id, :payment_status)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':customer_id', $data['customer_id']);
+            $stmt->bindParam(':total_amount', $data['total_amount']);
+            $stmt->bindParam(':user_id', $data['user_id']);
+            $stmt->bindParam(':payment_status', $data['payment_status']);
+            $stmt->execute();
+            
+            $order_id = $conn->lastInsertId();
+            
+            // Create order items
+            $sql = "INSERT INTO order_item (order_id, product_id, quantity, price) 
+                    VALUES (:order_id, :product_id, :quantity, :price)";
+            $stmt = $conn->prepare($sql);
+            
+            foreach ($data['order_items'] as $item) {
+                $stmt->bindParam(':order_id', $order_id);
+                $stmt->bindParam(':product_id', $item['product_id']);
+                $stmt->bindParam(':quantity', $item['quantity']);
+                $stmt->bindParam(':price', $item['price']);
+                $stmt->execute();
+            }
+            
+            // Create receipt
+            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount, printable_copy) 
+                    VALUES (:order_id, NOW(), :total_amount, :printable_copy)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':order_id', $order_id);
+            $stmt->bindParam(':total_amount', $data['total_amount']);
+            $stmt->bindParam(':printable_copy', $order_id); // You might want to generate a proper receipt format
+            $stmt->execute();
+            
+            $conn->commit();
+            return ["status" => true, "message" => "Order created successfully", "order_id" => $order_id];
+            
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return ["status" => false, "message" => "Failed to create order: " . $e->getMessage()];
+        }
+    }
 }
 ?>
