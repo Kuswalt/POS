@@ -6,28 +6,48 @@
     let selectedCategory: string = 'All Item Stocks';
     let itemName = '';
     let stockQuantity = 0;
+    let searchQuery = '';
+    let isEditModalOpen = false;
 
     let y = 0;
     let innerWidth = 0;
     let innerHeight = 0;
 
-    let items: Array<{ inventory_id: number, item_name: string, stock_quantity: number }> = [];
+    let items: Array<{ 
+        inventory_id: number, 
+        item_name: string, 
+        stock_quantity: number,
+        last_updated?: string 
+    }> = [];
     let editingItem: number | null = null;
 
-    function handleCategorySelect(category: string) {
-        selectedCategory = category;
-    }
-
-    function navigateToCart() {
-        goto('/Cart');
-    }
+    $: filteredItems = items.filter(item => 
+        item.item_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     async function fetchItems() {
         const response = await fetch('http://localhost/POS/api/routes.php?request=get-items');
         const result = await response.json();
         if (result.status) {
-            items = result.data;
+            items = result.data.map((item: any) => ({
+                ...item,
+                last_updated: new Date(item.last_updated).toLocaleString()
+            }));
         }
+    }
+
+    function startEdit(item: typeof items[0]) {
+        editingItem = item.inventory_id;
+        itemName = item.item_name;
+        stockQuantity = item.stock_quantity;
+        isEditModalOpen = true;
+    }
+
+    function closeEditModal() {
+        isEditModalOpen = false;
+        editingItem = null;
+        itemName = '';
+        stockQuantity = 0;
     }
 
     async function addItemStock() {
@@ -86,37 +106,29 @@
         }
     }
 
-    function startEdit(item: typeof items[0]) {
-        editingItem = item.inventory_id;
-        itemName = item.item_name;
-        stockQuantity = item.stock_quantity;
-    }
-
     import { onMount } from 'svelte';
     onMount(fetchItems);
 </script>
 
 <div class="layout">
     <Header {y} {innerHeight} />
-    <!-- <SideNav activeMenu="inventory" /> -->
     <div class="content">
-        <!-- <Header {y} {innerHeight} /> -->
         <main>
             <div class="product-details">
                 <div class="details">
                     <input type="text" placeholder="Product name" bind:value={itemName} />
                     <input type="number" placeholder="Quantity" bind:value={stockQuantity} />
-                    {#if editingItem}
-                        <button on:click={() => editingItem && updateItemStock(editingItem)}>Update</button>
-                        <button on:click={() => {
-                            editingItem = null;
-                            itemName = '';
-                            stockQuantity = 0;
-                        }}>Cancel</button>
-                    {:else}
-                        <button on:click={addItemStock}>Add Item</button>
-                    {/if}
+                    <button on:click={addItemStock}>Add Item</button>
                 </div>
+            </div>
+
+            <div class="search-bar">
+                <input 
+                    type="text" 
+                    bind:value={searchQuery}
+                    placeholder="Search items..." 
+                    class="search-input"
+                />
             </div>
 
             <div class="stock-table">
@@ -125,14 +137,16 @@
                         <tr>
                             <th>Name</th>
                             <th>Quantity</th>
+                            <th>Last Updated</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {#each items as item}
+                        {#each filteredItems as item}
                             <tr>
                                 <td>{item.item_name}</td>
                                 <td>{item.stock_quantity}</td>
+                                <td>{item.last_updated}</td>
                                 <td>
                                     <button on:click={() => startEdit(item)}>Edit</button>
                                     <button on:click={() => deleteItemStock(item.inventory_id)}>Delete</button>
@@ -145,6 +159,28 @@
         </main>
     </div>
 </div>
+
+{#if isEditModalOpen && editingItem}
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Item Stock</h2>
+                <button class="close-btn" on:click={closeEditModal}>&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" placeholder="Product name" bind:value={itemName} />
+                <input type="number" placeholder="Quantity" bind:value={stockQuantity} />
+                <div class="modal-actions">
+                    <button class="update-btn" on:click={() => {
+                        updateItemStock(editingItem!);
+                        closeEditModal();
+                    }}>Update</button>
+                    <button class="cancel-btn" on:click={closeEditModal}>Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
 
 <style>
     .layout {
@@ -181,8 +217,12 @@
     }
     button {
         margin: 0 5px;
-        padding: 5px 10px;
+        padding: 8px 16px;
         cursor: pointer;
+        border: none;
+        border-radius: 4px;
+        font-weight: 500;
+        transition: background-color 0.2s;
     }
     
     .details {
@@ -195,5 +235,101 @@
         padding: 5px;
         border: 1px solid #ddd;
         border-radius: 4px;
+    }
+
+    .search-bar {
+        margin: 20px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .update-btn {
+        background: #4CAF50;
+        color: white;
+    }
+
+    .cancel-btn {
+        background: #f44336;
+        color: white;
+    }
+
+    .details button {
+        background-color: #4CAF50;
+        color: white;
+    }
+
+    .details button:hover {
+        background-color: #45a049;
+    }
+
+    td button:first-child {
+        background-color: #2196F3;
+        color: white;
+    }
+
+    td button:first-child:hover {
+        background-color: #1976D2;
+    }
+
+    td button:last-child {
+        background-color: #f44336;
+        color: white;
+    }
+
+    td button:last-child:hover {
+        background-color: #d32f2f;
     }
 </style>

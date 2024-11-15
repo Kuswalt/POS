@@ -16,7 +16,7 @@ class Get {
     public function getItems() {
         global $conn;
         
-        $sql = "SELECT inventory_id, item_name, stock_quantity FROM inventory ORDER BY item_name";
+        $sql = "SELECT inventory_id, item_name, stock_quantity, last_updated FROM inventory ORDER BY item_name";
         $stmt = $conn->prepare($sql);
         
         try {
