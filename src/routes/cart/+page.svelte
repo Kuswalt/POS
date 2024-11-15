@@ -12,7 +12,19 @@
   export let onRemoveFromCart: (productId: number) => void;
   export let total: number;
 
+  let customerName = '';
+  let amountPaid = 0;
+  let change = 0;
+
+  $: change = amountPaid - total;
+  $: canCheckout = customerName.trim() && amountPaid >= total;
+
   async function checkout() {
+    if (!canCheckout) {
+      alert('Please enter customer name and sufficient payment amount');
+      return;
+    }
+
     try {
       const response = await fetch('http://localhost/POS/api/routes.php?request=create-order', {
         method: 'POST',
@@ -20,7 +32,8 @@
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          customer_id: 1, // You should implement customer selection
+          customer_name: customerName,
+          amount_paid: amountPaid,
           total_amount: total,
           user_id: 1, // Get from session
           payment_status: 'paid',
@@ -34,8 +47,10 @@
 
       const result = await response.json();
       if (result.status) {
-        alert('Order placed successfully!');
+        alert(`Order placed successfully!\nChange: ₱${change.toFixed(2)}`);
         cartItems = []; // Clear cart after successful order
+        customerName = '';
+        amountPaid = 0;
       } else {
         alert(result.message);
       }
@@ -65,9 +80,37 @@
       </div>
     {/each}
   </div>
+
+  <div class="customer-details">
+    <input
+      type="text"
+      bind:value={customerName}
+      placeholder="Customer Name"
+      class="input-field"
+    />
+    <input
+      type="number"
+      bind:value={amountPaid}
+      placeholder="Amount Paid"
+      min={total}
+      class="input-field"
+    />
+    {#if amountPaid > 0}
+      <div class="change-display">
+        <span>Change: ₱{change.toFixed(2)}</span>
+      </div>
+    {/if}
+  </div>
+
   <div class="cart-total">
     <h3>Total: ₱{total.toFixed(2)}</h3>
-    <button class="checkout-btn" on:click={checkout}>Proceed to Checkout</button>
+    <button 
+      class="checkout-btn" 
+      on:click={checkout}
+      disabled={!canCheckout}
+    >
+      Proceed to Checkout
+    </button>
   </div>
 </div>
 
@@ -153,5 +196,34 @@
 
   .checkout-btn:hover {
     background: #3db845;
+  }
+
+  .customer-details {
+    padding: 1rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .input-field {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.25rem;
+    font-size: 1rem;
+  }
+
+  .change-display {
+    padding: 0.5rem;
+    background: #f3f4f6;
+    border-radius: 0.25rem;
+    text-align: right;
+    font-weight: bold;
+  }
+
+  .checkout-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
   }
 </style>

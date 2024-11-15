@@ -135,8 +135,16 @@ class Post {
     public function addToCart($data) {
         global $conn;
         
+        // Debug logging
+        error_log('Received data: ' . print_r($data, true));
+        
         if (!isset($data['product_id'], $data['quantity'], $data['user_id'])) {
-            return ["status" => false, "message" => "Missing required fields"];
+            $missing = array_diff(['product_id', 'quantity', 'user_id'], array_keys($data));
+            return [
+                "status" => false, 
+                "message" => "Missing required fields: " . implode(', ', $missing),
+                "received" => $data
+            ];
         }
         
         $product_id = $data['product_id'];
@@ -155,12 +163,13 @@ class Post {
         
         $sql = "INSERT INTO cart (user_id, product_id, quantity) 
                 VALUES (:user_id, :product_id, :quantity)
-                ON DUPLICATE KEY UPDATE quantity = quantity + :quantity";
+                ON DUPLICATE KEY UPDATE quantity = quantity + :new_quantity";
         
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':user_id', $user_id);
         $stmt->bindParam(':product_id', $product_id);
         $stmt->bindParam(':quantity', $quantity);
+        $stmt->bindParam(':new_quantity', $quantity);
         
         try {
             $stmt->execute();

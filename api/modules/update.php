@@ -24,17 +24,38 @@ class Update {
 
     public function updateMenuItem($data) {
         global $conn;
+        
+        if (!isset($data['product_id'], $data['name'], $data['price'], $data['category'])) {
+            return ["status" => false, "message" => "Missing required fields"];
+        }
+
         $id = $data['product_id'];
         $name = $data['name'];
-        $image = $data['image'];
         $price = $data['price'];
         $category = $data['category'];
-
-        $sql = "UPDATE product SET name = :name, image = :image, price = :price, category = :category WHERE product_id = :id";
-        $stmt = $conn->prepare($sql);
+        
+        // Handle image upload if a new image was provided
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = '../uploads/';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            
+            $fileName = time() . '_' . $_FILES['image']['name'];
+            move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $fileName);
+            
+            // Update with new image
+            $sql = "UPDATE product SET name = :name, image = :image, price = :price, category = :category WHERE product_id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':image', $fileName);
+        } else {
+            // Update without changing image
+            $sql = "UPDATE product SET name = :name, price = :price, category = :category WHERE product_id = :id";
+            $stmt = $conn->prepare($sql);
+        }
+        
         $stmt->bindParam(':id', $id);
         $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':image', $image);
         $stmt->bindParam(':price', $price);
         $stmt->bindParam(':category', $category);
 

@@ -25,6 +25,13 @@ class Delete {
         global $conn;
         $id = $data['product_id'];
 
+        // First, delete related items in the cart
+        $deleteCartSql = "DELETE FROM cart WHERE product_id = :id";
+        $stmt = $conn->prepare($deleteCartSql);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+
+        // Now delete the product
         $sql = "DELETE FROM product WHERE product_id = :id";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':id', $id);

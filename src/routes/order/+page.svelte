@@ -5,8 +5,22 @@
   import Cart from '../cart/+page.svelte';
   import { onMount } from 'svelte';
 
-  type Product = { id: number; name: string; image: string; price: number; category: string };
-  type CartItem = Product & { quantity: number };
+  type Product = {
+    product_id: number;
+    name: string;
+    image: string;
+    price: number;
+    category: string
+  };
+  type CartItem = {
+    product_id: number;
+    id: number;
+    name: string;
+    image: string;
+    price: number;
+    category: string;
+    quantity: number;
+  };
 
   let y = 0;
   let innerWidth = 0;
@@ -23,37 +37,46 @@
   async function fetchItems() {
     const response = await fetch('http://localhost/POS/api/routes.php?request=get-menu-items');
     const data = await response.json();
-    products = data.map((p: any) => ({ ...p, price: Number(p.price) }));
+    products = data.map((p: any) => ({ 
+        ...p,
+        price: Number(p.price),
+        product_id: p.product_id || p.id
+    }));
   }
 
   async function addToCart(product: Product) {
-    const existingItem = cartItems.find(item => item.id === product.id);
+    const existingItem = cartItems.find(item => item.product_id === product.product_id);
     
     try {
+        const data = {
+            product_id: product.product_id,
+            quantity: 1,
+            user_id: 1 // You should get this from your authentication system
+        };
+        console.log('Sending data:', data);
+
         const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                product_id: product.id,
-                quantity: 1,
-                user_id: 1 // You should get this from your authentication system
-            })
+            body: JSON.stringify(data)
         });
 
         const result = await response.json();
+        console.log('Response:', result);
         
         if (result.status) {
             if (existingItem) {
                 cartItems = cartItems.map(item => 
-                    item.id === product.id
+                    item.product_id === product.product_id
                         ? { ...item, quantity: item.quantity + 1 }
                         : item
                 );
             } else {
-                const newItem: CartItem = {
+                const newItem = {
                     ...product,
+                    id: product.product_id,
                     quantity: 1
                 };
                 cartItems = [...cartItems, newItem];
@@ -68,7 +91,7 @@
   }
 
   function removeFromCart(productId: number) {
-    cartItems = cartItems.filter(item => item.id !== productId);
+    cartItems = cartItems.filter(item => item.product_id !== productId);
   }
 
   function updateQuantity(productId: number, newQuantity: number) {
@@ -77,7 +100,7 @@
       return;
     }
     cartItems = cartItems.map(item =>
-      item.id === productId 
+      item.product_id === productId 
         ? { ...item, quantity: newQuantity }
         : item
     );
@@ -127,15 +150,19 @@
         <div class="products-section">
           <div class="grid grid-cols-3 gap-4">
             {#each filteredProducts as product}
-              <div class="product-card" on:click={() => addToCart(product)}>
+              <button 
+                type="button" 
+                class="product-card"
+                on:click={() => addToCart(product)}
+              >
                 <ItemCard product={{
-                  id: product.id,
+                  product_id: product.product_id,
                   name: product.name,
                   image: product.image,
                   price: product.price.toString(),
                   category: product.category
                 }} />
-              </div>
+              </button>
             {/each}
           </div>
         </div>

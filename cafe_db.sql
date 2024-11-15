@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 10, 2024 at 02:44 PM
+-- Generation Time: Nov 15, 2024 at 03:52 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.1.25
 
@@ -20,6 +20,33 @@ SET time_zone = "+00:00";
 --
 -- Database: `cafe_db`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `cart`
+--
+
+CREATE TABLE `cart` (
+  `user_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `quantity` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `cart`
+--
+
+INSERT INTO `cart` (`user_id`, `product_id`, `quantity`) VALUES
+(1, 13, 1),
+(1, 13, 1),
+(1, 13, 1),
+(1, 12, 1),
+(1, 12, 1),
+(1, 12, 1),
+(1, 13, 1),
+(1, 12, 1),
+(1, 12, 1);
 
 -- --------------------------------------------------------
 
@@ -53,7 +80,9 @@ CREATE TABLE `inventory` (
 
 INSERT INTO `inventory` (`inventory_id`, `stock_quantity`, `last_updated`, `user_id`, `item_name`) VALUES
 (14, 5, '2024-11-10 21:28:37.000000', 0, 'bean'),
-(15, 5, '2024-11-10 21:40:51.000000', 0, 'ice');
+(15, 5, '2024-11-10 21:40:51.000000', 0, 'ice'),
+(16, 5, '2024-11-11 14:34:13.000000', 0, 'flour'),
+(17, 7, '2024-11-11 16:02:42.000000', 0, 'milk');
 
 -- --------------------------------------------------------
 
@@ -103,7 +132,8 @@ CREATE TABLE `product` (
 --
 
 INSERT INTO `product` (`product_id`, `name`, `price`, `category`, `image`) VALUES
-(4, 'coffee', 11, 'drink', 0x313733313232363630325f6c6f676f2e706e67);
+(12, 'Fries', 11, 'Burger & Fries', 0x313733313633373534335f6c6f676f2e706e67),
+(13, 'Coffee', 5, 'Iced Coffee', 0x313733313633383832345f6c6f676f2e706e67);
 
 -- --------------------------------------------------------
 
@@ -156,6 +186,13 @@ INSERT INTO `user_acc` (`User_id`, `username`, `password`, `role`) VALUES
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `cart`
+--
+ALTER TABLE `cart`
+  ADD KEY `product_id` (`product_id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `customer`
@@ -227,7 +264,7 @@ ALTER TABLE `customer`
 -- AUTO_INCREMENT for table `inventory`
 --
 ALTER TABLE `inventory`
-  MODIFY `inventory_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `inventory_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `order`
@@ -245,7 +282,7 @@ ALTER TABLE `order_item`
 -- AUTO_INCREMENT for table `product`
 --
 ALTER TABLE `product`
-  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `receipt`
@@ -270,10 +307,16 @@ ALTER TABLE `user_acc`
 --
 
 --
+-- Constraints for table `cart`
+--
+ALTER TABLE `cart`
+  ADD CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`),
+  ADD CONSTRAINT `cart_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `user_acc` (`User_id`);
+
+--
 -- Constraints for table `order`
 --
 ALTER TABLE `order`
-  ADD CONSTRAINT `order_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user_acc` (`User_id`),
   ADD CONSTRAINT `order_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`customer_id`);
 
 --

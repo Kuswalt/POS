@@ -34,8 +34,10 @@ try {
         case 'POST':
             switch ($request[0]) {
                 case 'add-menu-item':
+                case 'update-menu-item':
                     // Handle form data for menu items
                     $data = array(
+                        'product_id' => $_POST['product_id'] ?? null,
                         'name' => $_POST['name'] ?? null,
                         'image' => $_FILES['image']['name'] ?? null,
                         'price' => $_POST['price'] ?? null,
@@ -54,7 +56,11 @@ try {
                         $data['image'] = $fileName;
                     }
                     
-                    echo json_encode($post->addMenuItem($data));
+                    if ($request[0] === 'add-menu-item') {
+                        echo json_encode($post->addMenuItem($data));
+                    } else {
+                        echo json_encode($update->updateMenuItem($data));
+                    }
                     break;
                     
                 default:
@@ -99,17 +105,42 @@ try {
             }
             break;
         case 'PUT':
-            $data = json_decode(file_get_contents("php://input"), true);
             switch ($request[0]) {
-                case 'update-item-stock':
-                    echo json_encode($update->updateItemStock($data));
-                    break;
                 case 'update-menu-item':
+                    // Handle form data for menu items
+                    $data = array(
+                        'product_id' => $_POST['product_id'] ?? null,
+                        'name' => $_POST['name'] ?? null,
+                        'image' => $_FILES['image']['name'] ?? null,
+                        'price' => $_POST['price'] ?? null,
+                        'category' => $_POST['category'] ?? null
+                    );
+                    
+                    // Handle file upload
+                    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                        $uploadDir = '../uploads/';
+                        if (!file_exists($uploadDir)) {
+                            mkdir($uploadDir, 0777, true);
+                        }
+                        
+                        $fileName = time() . '_' . $_FILES['image']['name'];
+                        move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $fileName);
+                        $data['image'] = $fileName;
+                    }
+                    
                     echo json_encode($update->updateMenuItem($data));
                     break;
                 default:
-                    echo json_encode(["error" => "This is forbidden"]);
-                    http_response_code(403);
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    switch ($request[0]) {
+                        case 'update-item-stock':
+                            echo json_encode($update->updateItemStock($data));
+                            break;
+                        default:
+                            echo json_encode(["error" => "This is forbidden"]);
+                            http_response_code(403);
+                            break;
+                    }
                     break;
             }
             break;

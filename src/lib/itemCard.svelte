@@ -1,6 +1,6 @@
 <script lang="ts">
   export let product: {
-    id: number;
+    product_id: number;
     name: string;
     image: string;
     price: string;
