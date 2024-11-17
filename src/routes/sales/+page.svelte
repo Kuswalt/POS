@@ -3,6 +3,7 @@
   import Header from '$lib/header.svelte';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
+  import * as XLSX from 'xlsx';
 
   let y = 0;
   let innerWidth = 0;
@@ -426,6 +427,192 @@
     salesPerProductPerDayChart.render();
   }
 
+  // Add this function to handle Excel export
+  function exportToExcel() {
+    // Prepare the data for export
+    const exportData = filteredSalesData.map(sale => ({
+      Staff: sale.username,
+      Product: sale.product_name,
+      Quantity: sale.quantity,
+      'Customer Name': sale.customer_name,
+      'Amount Paid': `₱${parseFloat(sale.amount_paid).toFixed(2)}`,
+      'Total Amount': `₱${parseFloat(sale.total_amount).toFixed(2)}`,
+      Date: new Date(sale.order_date).toLocaleDateString()
+    }));
+
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sales Data');
+
+    // Generate and download file
+    XLSX.writeFile(wb, `sales_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  }
+
+  // Add print function
+  function printCharts() {
+    const printWindow = window.open('', '_blank');
+    const currentDate = new Date().toLocaleDateString();
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Sales Reports</title>
+          <style>
+            body { 
+              padding: 20px; 
+              font-family: Arial, sans-serif;
+              max-width: 1200px;
+              margin: 0 auto;
+            }
+            .report-header { 
+              text-align: center; 
+              margin-bottom: 30px;
+            }
+            .charts-grid { 
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 20px;
+              width: 100%;
+            }
+            .chart-container { 
+              page-break-inside: avoid;
+              background: white;
+              padding: 15px;
+              border-radius: 8px;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            @media print { 
+              @page { 
+                size: landscape;
+                margin: 1cm;
+              }
+              .charts-grid {
+                grid-template-columns: repeat(2, 1fr);
+              }
+              .chart-container {
+                box-shadow: none;
+                border: 1px solid #eee;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="report-header">
+            <h1>Sales Reports</h1>
+            <p>Generated on ${currentDate}</p>
+          </div>
+          <div class="charts-grid">
+            <div class="chart-container">
+              ${(document.querySelector("#salesPerPeriodChart") || {}).innerHTML || ''}
+            </div>
+            <div class="chart-container">
+              ${(document.querySelector("#salesPerProductChart") || {}).innerHTML || ''}
+            </div>
+            <div class="chart-container">
+              ${(document.querySelector("#salesPerDayChart") || {}).innerHTML || ''}
+            </div>
+            <div class="chart-container">
+              ${(document.querySelector("#salesPerProductPerDayChart") || {}).innerHTML || ''}
+            </div>
+          </div>
+          <script src="https://cdn.jsdelivr.net/npm/apexcharts"><\/script>
+          <script>
+            window.onload = function() { window.print(); };
+          <\/script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  }
+
+  // Add this function to handle order deletion
+  async function deleteOrder(orderId) {
+    if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost/POS/api/routes.php?request=delete-order', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ order_id: orderId })
+      });
+
+      const result = await response.json();
+      
+      if (result.status) {
+        // Fetch fresh data from the server instead of filtering locally
+        const refreshResponse = await fetch('http://localhost/POS/api/routes.php?request=get-sales-data');
+        const refreshResult = await refreshResponse.json();
+        
+        if (refreshResult.status) {
+          // Update all data states
+          salesData = refreshResult.data;
+          chartData = refreshResult.chartData;
+          dailyChartData = refreshResult.dailyChartData;
+          filteredSalesData = salesData;
+          
+          // Reinitialize charts with new data
+          await initializeCharts();
+          
+          alert('Order deleted successfully');
+        }
+      } else {
+        alert('Failed to delete order: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      alert('Error deleting order. Please try again.');
+    }
+  }
+
+  async function deleteAllOrders() {
+    if (!confirm('Are you sure you want to delete ALL orders? This action cannot be undone!')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost/POS/api/routes.php?request=delete-all-orders', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const result = await response.json();
+        
+        if (result.status) {
+            // Fetch fresh data from the server instead of clearing locally
+            const refreshResponse = await fetch('http://localhost/POS/api/routes.php?request=get-sales-data');
+            const refreshResult = await refreshResponse.json();
+            
+            if (refreshResult.status) {
+                // Update all data states
+                salesData = refreshResult.data;
+                chartData = refreshResult.chartData;
+                dailyChartData = refreshResult.dailyChartData;
+                filteredSalesData = salesData;
+                
+                // Reinitialize charts with new data
+                await initializeCharts();
+                
+                alert('All orders deleted successfully');
+            }
+        } else {
+            alert('Failed to delete orders: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error deleting orders:', error);
+        alert('Error deleting orders. Please try again.');
+    }
+  }
+
   onMount(async () => {
     try {
       const response = await fetch('http://localhost/POS/api/routes.php?request=get-sales-data');
@@ -518,6 +705,27 @@
         >
           Reset Filters
         </button>
+
+        <button
+          on:click={exportToExcel}
+          class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+        >
+          Export to Excel
+        </button>
+
+        <button
+          on:click={printCharts}
+          class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+        >
+          Print Charts
+        </button>
+
+        <button
+          on:click={deleteAllOrders}
+          class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+        >
+          Delete All Orders
+        </button>
       </div>
     </div>
 
@@ -538,12 +746,13 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
           {#if filteredSalesData.length === 0}
             <tr>
-              <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+              <td colspan="8" class="px-6 py-4 text-center text-gray-500">
                 No sales data available
               </td>
             </tr>
@@ -557,6 +766,14 @@
                 <td class="px-6 py-4 whitespace-nowrap">₱{parseFloat(sale.amount_paid).toFixed(2)}</td>
                 <td class="px-6 py-4 whitespace-nowrap">₱{parseFloat(sale.total_amount).toFixed(2)}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{new Date(sale.order_date).toLocaleDateString()}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <button
+                    on:click={() => deleteOrder(sale.order_id)}
+                    class="text-red-600 hover:text-red-900 font-medium"
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             {/each}
           {/if}
