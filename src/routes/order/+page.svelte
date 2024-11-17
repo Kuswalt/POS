@@ -4,14 +4,15 @@
   import ItemCard from '$lib/itemCard.svelte';
   import Cart from '../cart/+page.svelte';
   import { onMount } from 'svelte';
-  import { userStore } from '$lib/auth';
+  import { userStore } from '$lib/auth.js';
 
   type Product = {
     product_id: number;
     name: string;
     image: string;
     price: number;
-    category: string
+    category: string;
+    is_available: boolean;
   };
   type CartItem = {
     product_id: number;
@@ -32,7 +33,11 @@
   let searchQuery = '';
   let userId: number;
 
-  userStore.subscribe(user => {
+  userStore.subscribe((user) => {
+    if (!user.userId) {
+        window.location.href = '/login';
+        return;
+    }
     userId = user.userId;
   });
 
@@ -51,6 +56,11 @@
   }
 
   async function addToCart(product: Product) {
+    if (!product.is_available) {
+        alert('This item is currently unavailable');
+        return;
+    }
+
     const existingItem = cartItems.find(item => item.product_id === product.product_id);
     
     try {
@@ -59,7 +69,6 @@
             quantity: 1,
             user_id: userId
         };
-        console.log('Sending data:', data);
 
         const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
             method: 'POST',
@@ -70,7 +79,6 @@
         });
 
         const result = await response.json();
-        console.log('Response:', result);
         
         if (result.status) {
             if (existingItem) {
@@ -167,7 +175,8 @@
                   name: product.name,
                   image: product.image,
                   price: product.price.toString(),
-                  category: product.category
+                  category: product.category,
+                  is_available: product.is_available
                 }} />
               </button>
             {/each}

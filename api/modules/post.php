@@ -185,7 +185,7 @@ class Post {
         try {
             $conn->beginTransaction();
             
-            // Create order with user_id
+            // Create order (existing code)
             $sql = "INSERT INTO `order` (customer_id, order_date, total_amount, user_id, payment_status) 
                     VALUES (:customer_id, NOW(), :total_amount, :user_id, :payment_status)";
             $stmt = $conn->prepare($sql);
@@ -197,32 +197,45 @@ class Post {
             
             $order_id = $conn->lastInsertId();
             
-            // Create order items
-            $sql = "INSERT INTO order_item (order_id, product_id, quantity, price) 
-                    VALUES (:order_id, :product_id, :quantity, :price)";
-            $stmt = $conn->prepare($sql);
-            
+            // Create order items and update inventory
             foreach ($data['order_items'] as $item) {
+                // Insert order item
+                $sql = "INSERT INTO order_item (order_id, product_id, quantity, price) 
+                        VALUES (:order_id, :product_id, :quantity, :price)";
+                $stmt = $conn->prepare($sql);
                 $stmt->bindParam(':order_id', $order_id);
                 $stmt->bindParam(':product_id', $item['product_id']);
                 $stmt->bindParam(':quantity', $item['quantity']);
                 $stmt->bindParam(':price', $item['price']);
                 $stmt->execute();
+                
+                // Update inventory for each ingredient
+                $sql = "UPDATE inventory i 
+                       JOIN product_ingredients pi ON i.inventory_id = pi.inventory_id 
+                       SET i.stock_quantity = i.stock_quantity - (pi.quantity_needed * :order_quantity),
+                           i.last_updated = NOW()
+                       WHERE pi.product_id = :product_id";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':order_quantity', $item['quantity']);
+                $stmt->bindParam(':product_id', $item['product_id']);
+                $stmt->execute();
             }
             
+            // Create receipt (existing code)
+            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount, printable_copy) 
+                    VALUES (:order_id, NOW(), :total_amount, :printable_copy)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':order_id', $order_id);
+            $stmt->bindParam(':total_amount', $data['total_amount']);
+            $stmt->bindParam(':printable_copy', $order_id);
+            $stmt->execute();
+            
             $conn->commit();
-            return [
-                "status" => true, 
-                "message" => "Order created successfully", 
-                "order_id" => $order_id
-            ];
+            return ["status" => true, "message" => "Order created successfully", "order_id" => $order_id];
             
         } catch (PDOException $e) {
             $conn->rollBack();
-            return [
-                "status" => false, 
-                "message" => "Failed to create order: " . $e->getMessage()
-            ];
+            return ["status" => false, "message" => "Failed to create order: " . $e->getMessage()];
         }
     }
 
