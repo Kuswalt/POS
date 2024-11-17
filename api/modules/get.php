@@ -68,6 +68,7 @@ class Get {
                 $orderId = $row['order_id'];
                 if (!isset($groupedResults[$orderId])) {
                     $groupedResults[$orderId] = [
+                        'order_id' => $row['order_id'],
                         'username' => $row['username'],
                         'customer_name' => $row['customer_name'],
                         'amount_paid' => $row['amount_paid'],
@@ -84,6 +85,7 @@ class Get {
             // Format results for table display
             $formattedResults = array_map(function($group) {
                 return [
+                    'order_id' => $group['order_id'],
                     'username' => $group['username'],
                     'product_name' => implode(', ', $group['products']),
                     'quantity' => implode(', ', $group['quantities']),

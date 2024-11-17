@@ -179,6 +179,12 @@ try {
                 case 'delete-menu-item':
                     echo json_encode($delete->deleteMenuItem($data));
                     break;
+                case 'delete-order':
+                    echo json_encode($delete->deleteOrder($data));
+                    break;
+                case 'delete-all-orders':
+                    echo json_encode($delete->deleteAllOrders());
+                    break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);
                     http_response_code(403);
