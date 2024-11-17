@@ -8,8 +8,10 @@
   let innerWidth = 0;
   let innerHeight = 0;
   
-  // Empty array for now - will be populated later with actual data
+  // Update the data storage variables
   let salesData = [];
+  let chartData = {};  
+  let dailyChartData = {};  // Add this new variable
   let filteredSalesData = [];
   
   // Filter states
@@ -56,107 +58,118 @@
   let salesPerProductPerDayChart;
   
   // Function to prepare data for the sales per period chart
-  function prepareSalesPerPeriodData(data) {
+  function prepareSalesPerPeriodData(chartData) {
+    if (!chartData || Object.keys(chartData).length === 0) {
+        return { x: [], y: [] };
+    }
+
     const salesByPeriod = {};
     
-    data.forEach(sale => {
-      const date = new Date(sale.order_date);
-      const period = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-      
-      if (!salesByPeriod[period]) {
-        salesByPeriod[period] = 0;
-      }
-      salesByPeriod[period] += parseFloat(sale.total_amount);
+    Object.entries(chartData).forEach(([period, products]) => {
+        salesByPeriod[period] = Object.values(products).reduce((sum, value) => sum + value, 0);
     });
 
     const sortedPeriods = Object.keys(salesByPeriod).sort();
     
     return {
-      x: sortedPeriods,
-      y: sortedPeriods.map(period => salesByPeriod[period])
+        x: sortedPeriods,
+        y: sortedPeriods.map(period => salesByPeriod[period])
     };
   }
 
   // Function to prepare data for the sales per product chart
   function prepareSalesPerProductData(data) {
-    const salesByProduct = {};
+    if (!data || !data.chartData || Object.keys(data.chartData).length === 0) {
+        return [];
+    }
+
+    const products = new Set();
     const periods = new Set();
+    const salesByProduct = {};
     
-    data.forEach(sale => {
-      const product = sale.product_name;
-      const date = new Date(sale.order_date);
-      const period = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-      
-      if (!salesByProduct[product]) {
-        salesByProduct[product] = {};
-      }
-      if (!salesByProduct[product][period]) {
-        salesByProduct[product][period] = 0;
-      }
-      salesByProduct[product][period] += parseFloat(sale.total_amount);
-      periods.add(period);
+    Object.entries(data.chartData).forEach(([period, productSales]) => {
+        periods.add(period);
+        Object.entries(productSales).forEach(([product, amount]) => {
+            products.add(product);
+            if (!salesByProduct[product]) {
+                salesByProduct[product] = {};
+            }
+            salesByProduct[product][period] = amount;
+        });
     });
 
     const sortedPeriods = Array.from(periods).sort();
     
-    return Object.entries(salesByProduct).map(([product, data]) => ({
-      name: product,
-      data: sortedPeriods.map(period => ({
-        x: period,
-        y: data[period] || 0
-      }))
+    return Array.from(products).map(product => ({
+        name: product,
+        data: sortedPeriods.map(period => ({
+            x: period,
+            y: salesByProduct[product][period] || 0
+        }))
     }));
   }
 
-  // Add new data preparation functions for daily data
+  // Update the prepareSalesPerDayData function
   function prepareSalesPerDayData(data) {
+    if (!data || data.length === 0) {
+        return { x: [], y: [] };
+    }
+
     const salesByDay = {};
     
     data.forEach(sale => {
-      const date = new Date(sale.order_date);
-      const day = date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      
-      if (!salesByDay[day]) {
-        salesByDay[day] = 0;
-      }
-      salesByDay[day] += parseFloat(sale.total_amount);
+        const date = new Date(sale.order_date);
+        const day = date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        const products = sale.product_name.split(', ');
+        const quantities = sale.quantity.split(', ').map(Number);
+        
+        if (!salesByDay[day]) {
+            salesByDay[day] = 0;
+        }
+
+        // Calculate total for this sale based on individual products
+        products.forEach((_, index) => {
+            salesByDay[day] += parseFloat(sale.total_amount) * (quantities[index] / quantities.reduce((a, b) => a + b, 0));
+        });
     });
 
     const sortedDays = Object.keys(salesByDay).sort();
     
     return {
-      x: sortedDays,
-      y: sortedDays.map(day => salesByDay[day])
+        x: sortedDays,
+        y: sortedDays.map(day => salesByDay[day])
     };
   }
 
+  // Update the prepareSalesPerProductPerDayData function
   function prepareSalesPerProductPerDayData(data) {
-    const salesByProduct = {};
+    if (!data || !data.dailyChartData || Object.keys(data.dailyChartData).length === 0) {
+        return [];
+    }
+
+    const products = new Set();
     const days = new Set();
+    const salesByProduct = {};
     
-    data.forEach(sale => {
-      const product = sale.product_name;
-      const date = new Date(sale.order_date);
-      const day = date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      
-      if (!salesByProduct[product]) {
-        salesByProduct[product] = {};
-      }
-      if (!salesByProduct[product][day]) {
-        salesByProduct[product][day] = 0;
-      }
-      salesByProduct[product][day] += parseFloat(sale.total_amount);
-      days.add(day);
+    Object.entries(data.dailyChartData).forEach(([day, productSales]) => {
+        days.add(day);
+        Object.entries(productSales).forEach(([product, amount]) => {
+            products.add(product);
+            if (!salesByProduct[product]) {
+                salesByProduct[product] = {};
+            }
+            salesByProduct[product][day] = amount;
+        });
     });
 
     const sortedDays = Array.from(days).sort();
     
-    return Object.entries(salesByProduct).map(([product, data]) => ({
-      name: product,
-      data: sortedDays.map(day => ({
-        x: day,
-        y: data[day] || 0
-      }))
+    return Array.from(products).map(product => ({
+        name: product,
+        data: sortedDays.map(day => ({
+            x: day,
+            y: salesByProduct[product][day] || 0
+        }))
     }));
   }
 
@@ -171,8 +184,10 @@
   function updateCharts() {
     if (!browser || !ApexCharts) return;
 
-    const periodData = prepareSalesPerPeriodData(salesData);
-    const productData = prepareSalesPerProductData(salesData);
+    const periodData = prepareSalesPerPeriodData(chartData);
+    const productData = prepareSalesPerProductData({chartData}); // Pass the entire response
+    const dailyData = prepareSalesPerDayData(salesData);
+    const productDailyData = prepareSalesPerProductPerDayData({dailyChartData: dailyChartData}); // Pass the stored dailyChartData
 
     // Total sales per period chart
     const periodOptions = {
@@ -281,9 +296,6 @@
     };
 
     // Add daily charts
-    const dailyData = prepareSalesPerDayData(salesData);
-    const productDailyData = prepareSalesPerProductPerDayData(salesData);
-
     const dailyOptions = {
       series: [{
         name: 'Total Sales',
@@ -421,6 +433,8 @@
       
       if (result.status) {
         salesData = result.data;
+        chartData = result.chartData;
+        dailyChartData = result.dailyChartData;  // Store the daily chart data
         filteredSalesData = salesData;
         await initializeCharts();
       } else {
