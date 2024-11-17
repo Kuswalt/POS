@@ -4,6 +4,7 @@
   import ItemCard from '$lib/itemCard.svelte';
   import Cart from '../cart/+page.svelte';
   import { onMount } from 'svelte';
+  import { userStore } from '$lib/auth';
 
   type Product = {
     product_id: number;
@@ -29,6 +30,11 @@
   let cartItems: CartItem[] = [];
   let selectedCategory = 'All';
   let searchQuery = '';
+  let userId: number;
+
+  userStore.subscribe(user => {
+    userId = user.userId;
+  });
 
   onMount(async () => {
     await fetchItems();
@@ -51,7 +57,7 @@
         const data = {
             product_id: product.product_id,
             quantity: 1,
-            user_id: 1 // You should get this from your authentication system
+            user_id: userId
         };
         console.log('Sending data:', data);
 
@@ -115,6 +121,7 @@
     .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   $: categories = ['All', ...new Set(products.map(p => p.category))];
+  $: total = getTotal();
 </script>
 
 <Header {y} {innerHeight} />
@@ -171,9 +178,10 @@
 
     <Cart 
       {cartItems} 
+      {userId}
       onUpdateQuantity={updateQuantity}
       onRemoveFromCart={removeFromCart}
-      total={getTotal()}
+      {total}
     />
   </div>
 </div>

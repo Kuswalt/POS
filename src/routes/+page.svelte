@@ -1,5 +1,6 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
+    import { setUser } from '$lib/auth';
     import { onMount } from 'svelte';
 
     let username = '';
@@ -12,7 +13,6 @@
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                action: 'login',
                 username,
                 password
             })
@@ -20,6 +20,11 @@
 
         const result = await response.json();
         if (result.status) {
+            // Store user data
+            setUser({
+                User_id: result.userId,
+                username: username
+            });
             goto('/order');
         } else {
             alert(result.message);

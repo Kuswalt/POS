@@ -10,53 +10,140 @@
   export let cartItems: CartItem[] = [];
   export let onUpdateQuantity: (productId: number, newQuantity: number) => void;
   export let onRemoveFromCart: (productId: number) => void;
-  export let total: number;
+  export let userId: number;
 
   let customerName = '';
   let amountPaid = 0;
   let change = 0;
 
+  // Calculate total from cart items
+  $: total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Calculate change whenever amountPaid or total changes
   $: change = amountPaid - total;
-  $: canCheckout = customerName.trim() && amountPaid >= total;
 
-  async function checkout() {
-    if (!canCheckout) {
-      alert('Please enter customer name and sufficient payment amount');
+  async function saveCustomer() {
+    if (!customerName.trim()) {
+      alert('Please enter customer name');
+      return;
+    }
+
+    if (!amountPaid) {
+      alert('Please enter amount paid');
       return;
     }
 
     try {
-      const response = await fetch('http://localhost/POS/api/routes.php?request=create-order', {
+      // First save customer info
+      const customerResponse = await fetch('http://localhost/POS/api/routes.php?request=add-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          customer_name: customerName,
-          amount_paid: amountPaid,
-          total_amount: total,
-          user_id: 1, // Get from session
-          payment_status: 'paid',
-          order_items: cartItems.map(item => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price
-          }))
+          Name: customerName,
+          total_amount: amountPaid
         })
       });
 
-      const result = await response.json();
-      if (result.status) {
-        alert(`Order placed successfully!\nChange: ₱${change.toFixed(2)}`);
-        cartItems = []; // Clear cart after successful order
-        customerName = '';
-        amountPaid = 0;
+      let customerResult;
+      try {
+        customerResult = await customerResponse.json();
+      } catch (e) {
+        console.error('Customer Response:', await customerResponse.text());
+        throw new Error('Invalid JSON in customer response');
+      }
+
+      if (customerResult.status) {
+        // Create order
+        const orderResponse = await fetch('http://localhost/POS/api/routes.php?request=create-order', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            customer_id: customerResult.customer_id,
+            total_amount: total,
+            user_id: userId,
+            payment_status: 'paid',
+            order_items: cartItems.map(item => ({
+              product_id: item.id,
+              quantity: item.quantity,
+              price: item.price
+            }))
+          })
+        });
+
+        let orderResult;
+        try {
+          orderResult = await orderResponse.json();
+        } catch (e) {
+          console.error('Order Response:', await orderResponse.text());
+          throw new Error('Invalid JSON in order response');
+        }
+
+        if (orderResult.status) {
+          // Record sale
+          const saleResponse = await fetch('http://localhost/POS/api/routes.php?request=add-sale', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              order_id: orderResult.order_id,
+              total_sales: total,
+              user_id: userId
+            })
+          });
+
+          let saleResult;
+          try {
+            saleResult = await saleResponse.json();
+          } catch (e) {
+            console.error('Sale Response:', await saleResponse.text());
+            throw new Error('Invalid JSON in sale response');
+          }
+
+          if (saleResult.status) {
+            // Generate receipt
+            const receiptResponse = await fetch('http://localhost/POS/api/routes.php?request=add-receipt', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                order_id: orderResult.order_id,
+                total_amount: total
+              })
+            });
+
+            let receiptResult;
+            try {
+              receiptResult = await receiptResponse.json();
+            } catch (e) {
+              console.error('Receipt Response:', await receiptResponse.text());
+              throw new Error('Invalid JSON in receipt response');
+            }
+
+            if (receiptResult.status) {
+              alert('Transaction completed successfully!');
+              cartItems = []; // Clear cart after successful save
+              customerName = '';
+              amountPaid = 0;
+            } else {
+              alert('Failed to generate receipt: ' + receiptResult.message);
+            }
+          } else {
+            alert('Failed to record sale: ' + saleResult.message);
+          }
+        } else {
+          alert('Failed to save order information: ' + orderResult.message);
+        }
       } else {
-        alert(result.message);
+        alert('Failed to save customer information: ' + customerResult.message);
       }
     } catch (error) {
-      console.error('Error creating order:', error);
-      alert('Failed to place order');
+      console.error('Error saving information:', error);
+      alert(error.message || 'Failed to save information');
     }
   }
 </script>
@@ -104,13 +191,15 @@
 
   <div class="cart-total">
     <h3>Total: ₱{total.toFixed(2)}</h3>
-    <button 
-      class="checkout-btn" 
-      on:click={checkout}
-      disabled={!canCheckout}
-    >
-      Proceed to Checkout
-    </button>
+    <div class="customer-actions">
+      <button 
+        class="save-customer-btn"
+        on:click={saveCustomer}
+        disabled={!customerName.trim() || !amountPaid}
+      >
+        Proceed To Checkout
+      </button>
+    </div>
   </div>
 </div>
 
@@ -184,13 +273,12 @@
   }
 
   .checkout-btn {
-    width: 100%;
+    flex: 1;
     padding: 0.75rem;
     background: #47cb50;
     color: white;
     border: none;
     border-radius: 0.5rem;
-    margin-top: 1rem;
     cursor: pointer;
   }
 
@@ -224,6 +312,31 @@
 
   .checkout-btn:disabled {
     background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  .customer-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .save-customer-btn {
+    flex: 1;
+    padding: 0.75rem;
+    background: #4B5563;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  .save-customer-btn:hover {
+    background: #374151;
+  }
+
+  .save-customer-btn:disabled {
+    background: #9CA3AF;
     cursor: not-allowed;
   }
 </style>

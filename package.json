@@ -58,5 +58,8 @@
 		"typescript-eslint": "^8.0.0",
 		"vite": "^5.0.11",
 		"vitest": "^2.0.4"
+	},
+	"dependencies": {
+		"pos": "file:"
 	}
 }

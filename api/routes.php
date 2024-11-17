@@ -1,5 +1,8 @@
 <?php
 
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -63,6 +66,23 @@ try {
                     }
                     break;
                     
+                case 'add-customer':
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    echo json_encode($post->addCustomer($data));
+                    break;
+                    
+                case 'add-receipt':
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Invalid JSON data: " . json_last_error_msg()
+                        ]);
+                        break;
+                    }
+                    echo json_encode($post->addReceipt($data));
+                    break;
+                    
                 default:
                     // For other POST requests, use JSON
                     $data = json_decode(file_get_contents("php://input"), true);
@@ -81,6 +101,9 @@ try {
                             break;
                         case 'create-order':
                             echo json_encode($post->createOrder($data));
+                            break;
+                        case 'add-sale':
+                            echo json_encode($post->addSale($data));
                             break;
                         default:
                             echo json_encode(["error" => "This is forbidden"]);
@@ -165,7 +188,10 @@ try {
             break;
     }
 } catch (Exception $e) {
-    echo json_encode(["error" => $e->getMessage()]);
+    echo json_encode([
+        "status" => false,
+        "message" => "Server error: " . $e->getMessage()
+    ]);
     http_response_code(500);
 }
 ?>

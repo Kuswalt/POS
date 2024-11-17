@@ -185,7 +185,7 @@ class Post {
         try {
             $conn->beginTransaction();
             
-            // Create order
+            // Create order with user_id
             $sql = "INSERT INTO `order` (customer_id, order_date, total_amount, user_id, payment_status) 
                     VALUES (:customer_id, NOW(), :total_amount, :user_id, :payment_status)";
             $stmt = $conn->prepare($sql);
@@ -210,21 +210,139 @@ class Post {
                 $stmt->execute();
             }
             
-            // Create receipt
-            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount, printable_copy) 
-                    VALUES (:order_id, NOW(), :total_amount, :printable_copy)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':order_id', $order_id);
-            $stmt->bindParam(':total_amount', $data['total_amount']);
-            $stmt->bindParam(':printable_copy', $order_id); // You might want to generate a proper receipt format
-            $stmt->execute();
-            
             $conn->commit();
-            return ["status" => true, "message" => "Order created successfully", "order_id" => $order_id];
+            return [
+                "status" => true, 
+                "message" => "Order created successfully", 
+                "order_id" => $order_id
+            ];
             
         } catch (PDOException $e) {
             $conn->rollBack();
-            return ["status" => false, "message" => "Failed to create order: " . $e->getMessage()];
+            return [
+                "status" => false, 
+                "message" => "Failed to create order: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function addCustomer($data) {
+        global $conn;
+        
+        if (!isset($data['Name']) || !isset($data['total_amount'])) {
+            return [
+                "status" => false,
+                "message" => "Customer name and total amount are required"
+            ];
+        }
+
+        try {
+            $sql = "INSERT INTO customer (Name, total_amount) 
+                    VALUES (:name, :total_amount)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':name', $data['Name']);
+            $stmt->bindParam(':total_amount', $data['total_amount']);
+            
+            if ($stmt->execute()) {
+                $customer_id = $conn->lastInsertId();
+                return [
+                    "status" => true,
+                    "message" => "Customer added successfully",
+                    "customer_id" => $customer_id
+                ];
+            } else {
+                return [
+                    "status" => false,
+                    "message" => "Failed to add customer"
+                ];
+            }
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Database error: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function addSale($data) {
+        global $conn;
+        
+        try {
+            $sql = "INSERT INTO sales (order_id, total_sales, sales_date, user_id) 
+                    VALUES (:order_id, :total_sales, NOW(), :user_id)";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->bindParam(':total_sales', $data['total_sales']);
+            $stmt->bindParam(':user_id', $data['user_id']);
+            
+            if ($stmt->execute()) {
+                return [
+                    "status" => true,
+                    "message" => "Sale recorded successfully"
+                ];
+            } else {
+                return [
+                    "status" => false,
+                    "message" => "Failed to record sale"
+                ];
+            }
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Database error: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function addReceipt($data) {
+        global $conn;
+        
+        if (!isset($data['order_id']) || !isset($data['total_amount'])) {
+            return [
+                "status" => false,
+                "message" => "Missing required fields: order_id and total_amount"
+            ];
+        }
+        
+        try {
+            // First check if the order exists
+            $checkOrder = "SELECT order_id FROM `order` WHERE order_id = :order_id";
+            $stmt = $conn->prepare($checkOrder);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+            
+            if (!$stmt->fetch()) {
+                return [
+                    "status" => false,
+                    "message" => "Invalid order ID"
+                ];
+            }
+
+            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount) 
+                    VALUES (:order_id, NOW(), :total_amount)";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->bindParam(':total_amount', $data['total_amount']);
+            
+            if ($stmt->execute()) {
+                return [
+                    "status" => true,
+                    "message" => "Receipt generated successfully",
+                    "receipt_id" => $conn->lastInsertId()
+                ];
+            } else {
+                return [
+                    "status" => false,
+                    "message" => "Failed to generate receipt"
+                ];
+            }
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Database error: " . $e->getMessage()
+            ];
         }
     }
 }
