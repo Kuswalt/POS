@@ -21,6 +21,21 @@
   // Calculate change whenever amountPaid or total changes
   $: change = amountPaid - total;
 
+  // Add new interface for receipt data
+  interface ReceiptData {
+    receipt_id: number;
+    customer_name: string;
+    date: string;
+    items: CartItem[];
+    total_amount: number;
+    amount_paid: number;
+    change: number;
+  }
+
+  // Add new state variables
+  let showReceiptModal = false;
+  let receiptData: ReceiptData | null = null;
+
   async function saveCustomer() {
     if (!customerName.trim()) {
       alert('Please enter customer name');
@@ -125,8 +140,19 @@
             }
 
             if (receiptResult.status) {
-              alert('Transaction completed successfully!');
-              cartItems = []; // Clear cart after successful save
+              // Prepare receipt data
+              receiptData = {
+                receipt_id: receiptResult.receipt_id,
+                customer_name: customerName,
+                date: new Date().toLocaleString(),
+                items: cartItems,
+                total_amount: total,
+                amount_paid: amountPaid,
+                change: change
+              };
+              
+              showReceiptModal = true; // Show the receipt modal
+              cartItems = []; // Clear cart
               customerName = '';
               amountPaid = 0;
             } else {
@@ -145,6 +171,115 @@
       console.error('Error saving information:', error);
       alert(error.message || 'Failed to save information');
     }
+  }
+
+  function closeReceiptModal() {
+    showReceiptModal = false;
+    receiptData = null;
+  }
+
+  function printReceipt() {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow || !receiptData) return;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt #${receiptData.receipt_id}</title>
+          <style>
+            body {
+              font-family: 'Courier New', Courier, monospace;
+              padding: 20px;
+              max-width: 300px;
+              margin: 0 auto;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            .receipt-details {
+              margin-bottom: 20px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 20px 0;
+            }
+            th, td {
+              text-align: left;
+              padding: 5px;
+            }
+            .summary {
+              border-top: 1px dashed #000;
+              margin-top: 20px;
+              padding-top: 10px;
+            }
+            .summary p {
+              margin: 5px 0;
+            }
+            @media print {
+              body {
+                width: 80mm; /* Standard receipt width */
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>Laz Bean Cafe</h2>
+            <p>Receipt #${receiptData.receipt_id}</p>
+          </div>
+          
+          <div class="receipt-details">
+            <p>Date: ${receiptData.date}</p>
+            <p>Customer: ${receiptData.customer_name}</p>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${receiptData.items.map(item => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td>${item.quantity}</td>
+                  <td>₱${item.price}</td>
+                  <td>₱${(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="summary">
+            <p><strong>Total Amount:</strong> ₱${receiptData.total_amount.toFixed(2)}</p>
+            <p><strong>Amount Paid:</strong> ₱${receiptData.amount_paid.toFixed(2)}</p>
+            <p><strong>Change:</strong> ₱${receiptData.change.toFixed(2)}</p>
+          </div>
+
+          <div class="footer" style="text-align: center; margin-top: 30px;">
+            <p>Thank you for your purchase!</p>
+            <p>Please come again</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for content to load before printing
+    printWindow.onload = function() {
+      printWindow.print();
+      // Optional: Close the window after printing
+      // printWindow.close();
+    };
   }
 </script>
 
@@ -202,6 +337,50 @@
     </div>
   </div>
 </div>
+
+{#if showReceiptModal && receiptData}
+  <div class="modal-overlay">
+    <div class="modal-content">
+      <div class="receipt">
+        <h2>Receipt #{receiptData.receipt_id}</h2>
+        <p class="receipt-date">Date: {receiptData.date}</p>
+        <p class="customer-name">Customer: {receiptData.customer_name}</p>
+        
+        <div class="receipt-items">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each receiptData.items as item}
+                <tr>
+                  <td>{item.name}</td>
+                  <td>{item.quantity}</td>
+                  <td>₱{item.price}</td>
+                  <td>₱{(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="receipt-summary">
+          <p><strong>Total Amount:</strong> ₱{receiptData.total_amount.toFixed(2)}</p>
+          <p><strong>Amount Paid:</strong> ₱{receiptData.amount_paid.toFixed(2)}</p>
+          <p><strong>Change:</strong> ₱{receiptData.change.toFixed(2)}</p>
+        </div>
+
+        <button class="close-btn" on:click={closeReceiptModal}>Close</button>
+        <button class="print-btn" on:click={printReceipt}>Print</button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .cart-section {
@@ -338,5 +517,98 @@
   .save-customer-btn:disabled {
     background: #9CA3AF;
     cursor: not-allowed;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .receipt {
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  .receipt h2 {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .receipt-date, .customer-name {
+    margin-bottom: 0.5rem;
+  }
+
+  .receipt-items {
+    margin: 1rem 0;
+  }
+
+  .receipt-items table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .receipt-items th, .receipt-items td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+
+  .receipt-summary {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px dashed #ccc;
+  }
+
+  .receipt-summary p {
+    margin: 0.5rem 0;
+  }
+
+  .close-btn {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    background: #4B5563;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+    cursor: pointer;
+  }
+
+  .close-btn:hover {
+    background: #374151;
+  }
+
+  .print-btn {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    background: #4B5563;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+    cursor: pointer;
+  }
+
+  .print-btn:hover {
+    background: #374151;
   }
 </style>
