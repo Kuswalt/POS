@@ -121,6 +121,9 @@ try {
                 case 'get-items':
                     echo json_encode($get->getItems());
                     break;
+                case 'get-sales-data':
+                    echo json_encode($get->getSalesData());
+                    break;
                 default:
                     echo json_encode(["error" => "Invalid GET request"]);
                     http_response_code(404);

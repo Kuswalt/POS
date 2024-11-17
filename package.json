@@ -60,6 +60,8 @@
 		"vitest": "^2.0.4"
 	},
 	"dependencies": {
+		"apexcharts": "^4.0.0",
+		"chart.js": "^4.4.6",
 		"pos": "file:"
 	}
 }

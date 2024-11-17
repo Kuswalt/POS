@@ -7,27 +7,33 @@
     let password = '';
 
     async function login() {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                username,
-                password
-            })
-        });
-
-        const result = await response.json();
-        if (result.status) {
-            // Store user data
-            setUser({
-                User_id: result.userId,
-                username: username
+        try {
+            const response = await fetch('http://localhost/POS/api/routes.php?request=login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username,
+                    password
+                })
             });
-            goto('/order');
-        } else {
-            alert(result.message);
+
+            const result = await response.json();
+            
+            if (result.status) {
+                setUser({
+                    User_id: result.userId,
+                    username: username,
+                    role: result.role
+                });
+                goto('/order');
+            } else {
+                alert(result.message || 'Login failed');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('Failed to connect to the server');
         }
     }
 </script>
