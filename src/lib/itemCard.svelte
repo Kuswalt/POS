@@ -5,21 +5,24 @@
     image: string;
     price: string;
     category: string;
+    is_available: boolean;
   };
 </script>
 
-<div class="card">
-  <div class="image-container">
-    <img src={product.image ? `uploads/${product.image}` : 'placeholder.jpg'} alt={product.name} class="card-image" />
-  </div>
-  <div class="card-content">
-    <h3 class="card-title">{product.name}</h3>
-    <p class="card-price">₱ {product.price}</p>
+<div class="item-card {!product.is_available ? 'unavailable' : ''}">
+  <img src={product.image ? `uploads/${product.image}` : 'placeholder.jpg'} alt={product.name} />
+  <div class="item-details">
+    <h3>{product.name}</h3>
+    <p class="price">₱{product.price}</p>
+    {#if !product.is_available}
+      <div class="unavailable-badge">Unavailable</div>
+    {/if}
   </div>
 </div>
 
 <style>
-  .card {
+  .item-card {
+    position: relative;
     background: white;
     border-radius: 16px;
     overflow: hidden;
@@ -34,7 +37,7 @@
     cursor: pointer;
   }
 
-  .card:hover {
+  .item-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
   }
@@ -69,5 +72,23 @@
     color: #333;
     font-weight: bold;
     font-size: 0.9rem;
+  }
+
+  .unavailable {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .unavailable-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    background-color: rgba(255, 0, 0, 0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: uppercase;
   }
 </style>

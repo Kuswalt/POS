@@ -11,6 +11,7 @@
   export let onUpdateQuantity: (productId: number, newQuantity: number) => void;
   export let onRemoveFromCart: (productId: number) => void;
   export let userId: number;
+  export let total: number;
 
   let customerName = '';
   let amountPaid = 0;
@@ -167,7 +168,7 @@
       } else {
         alert('Failed to save customer information: ' + customerResult.message);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving information:', error);
       alert(error.message || 'Failed to save information');
     }

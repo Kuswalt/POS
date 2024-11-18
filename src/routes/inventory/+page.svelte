@@ -6,6 +6,7 @@
     let selectedCategory: string = 'All Item Stocks';
     let itemName = '';
     let stockQuantity = 0;
+    let unitOfMeasure = 'pieces';
     let searchQuery = '';
     let isEditModalOpen = false;
 
@@ -17,6 +18,7 @@
         inventory_id: number, 
         item_name: string, 
         stock_quantity: number,
+        unit_of_measure: string,
         last_updated?: string 
     }> = [];
     let editingItem: number | null = null;
@@ -117,7 +119,19 @@
             <div class="product-details">
                 <div class="details">
                     <input type="text" placeholder="Product name" bind:value={itemName} />
-                    <input type="number" placeholder="Quantity" bind:value={stockQuantity} />
+                    <div class="quantity-input">
+                        <input type="number" placeholder="Quantity" bind:value={stockQuantity} />
+                        <select bind:value={unitOfMeasure}>
+                            <option value="pieces">Pieces</option>
+                            <option value="grams">Grams</option>
+                            <option value="kilograms">Kilograms</option>
+                            <option value="milliliters">Milliliters</option>
+                            <option value="liters">Liters</option>
+                            <option value="cups">Cups</option>
+                            <option value="tablespoons">Tablespoons</option>
+                            <option value="teaspoons">Teaspoons</option>
+                        </select>
+                    </div>
                     <button on:click={addItemStock}>Add Item</button>
                 </div>
             </div>
@@ -137,6 +151,7 @@
                         <tr>
                             <th>Name</th>
                             <th>Quantity</th>
+                            <th>Unit</th>
                             <th>Last Updated</th>
                             <th>Actions</th>
                         </tr>
@@ -146,6 +161,7 @@
                             <tr>
                                 <td>{item.item_name}</td>
                                 <td>{item.stock_quantity}</td>
+                                <td>{item.unit_of_measure}</td>
                                 <td>{item.last_updated}</td>
                                 <td>
                                     <button on:click={() => startEdit(item)}>Edit</button>
@@ -169,7 +185,19 @@
             </div>
             <div class="modal-body">
                 <input type="text" placeholder="Product name" bind:value={itemName} />
-                <input type="number" placeholder="Quantity" bind:value={stockQuantity} />
+                <div class="quantity-input">
+                    <input type="number" placeholder="Quantity" bind:value={stockQuantity} />
+                    <select bind:value={unitOfMeasure}>
+                        <option value="pieces">Pieces</option>
+                        <option value="grams">Grams</option>
+                        <option value="kilograms">Kilograms</option>
+                        <option value="milliliters">Milliliters</option>
+                        <option value="liters">Liters</option>
+                        <option value="cups">Cups</option>
+                        <option value="tablespoons">Tablespoons</option>
+                        <option value="teaspoons">Teaspoons</option>
+                    </select>
+                </div>
                 <div class="modal-actions">
                     <button class="update-btn" on:click={() => {
                         updateItemStock(editingItem!);
@@ -331,5 +359,21 @@
 
     td button:last-child:hover {
         background-color: #d32f2f;
+    }
+
+    .quantity-input {
+        display: flex;
+        gap: 5px;
+    }
+
+    .quantity-input input,
+    .quantity-input select {
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .quantity-input select {
+        min-width: 120px;
     }
 </style>

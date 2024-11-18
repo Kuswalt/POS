@@ -1,5 +1,5 @@
-import { requireAuth } from '$lib/authGuard';
-import type { PageLoad } from './$types';
+import { requireAuth } from '$lib/authGuard.js';
+import type { PageLoad } from './$types.js';
 
 export const load: PageLoad = () => {
     requireAuth(0);

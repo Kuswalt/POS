@@ -1,8 +1,9 @@
 import { goto } from '$app/navigation';
-import { userStore } from './auth';
+import { userStore } from './auth.js';
 import { get } from 'svelte/store';
 
-export function requireAuth(requiredRole: number = 0) {
+export function requireAuth(requiredRole: number = 1) {
+    // Add your authentication logic here
     const user = get(userStore);
     
     if (!user.isAuthenticated) {
@@ -14,6 +15,5 @@ export function requireAuth(requiredRole: number = 0) {
         goto('/order');
         return false;
     }
-
     return true;
 }

@@ -4,7 +4,7 @@
   import ItemCard from '$lib/itemCard.svelte';
   import Cart from '../cart/+page.svelte';
   import { onMount } from 'svelte';
-  import { userStore } from '$lib/auth';
+  import { userStore } from '$lib/auth.js';
 
   type Product = {
     product_id: number;
@@ -13,6 +13,7 @@
     price: number;
     category: string;
     size?: string;
+
   };
   type CartItem = {
     product_id: number;
@@ -42,7 +43,11 @@
   let showSizeModal = false;
   let selectedProduct: GroupedProduct | null = null;
 
-  userStore.subscribe(user => {
+  userStore.subscribe((user) => {
+    if (!user.userId) {
+        window.location.href = '/login';
+        return;
+    }
     userId = user.userId;
   });
 
@@ -61,6 +66,11 @@
   }
 
   async function addToCart(product: Product) {
+    if (!product.is_available) {
+        alert('This item is currently unavailable');
+        return;
+    }
+
     const existingItem = cartItems.find(item => item.product_id === product.product_id);
     
     try {
@@ -69,7 +79,6 @@
             quantity: 1,
             user_id: userId
         };
-        console.log('Sending data:', data);
 
         const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
             method: 'POST',
@@ -80,7 +89,6 @@
         });
 
         const result = await response.json();
-        console.log('Response:', result);
         
         if (result.status) {
             if (existingItem) {
@@ -202,11 +210,13 @@
                 on:click={() => handleProductClick(group)}
               >
                 <ItemCard product={{
+
                   product_id: group.variants[0].product_id,
                   name: group.name,
                   image: group.image,
                   price: group.variants[0].price.toString(),
                   category: group.category
+
                 }} />
               </button>
             {/each}
