@@ -44,12 +44,8 @@ try {
                         'name' => $_POST['name'] ?? null,
                         'image' => $_FILES['image']['name'] ?? null,
                         'price' => $_POST['price'] ?? null,
-                        'category' => $_POST['category'] ?? null,
-                        'size' => $_POST['size'] ?? 'base-size'
+                        'category' => $_POST['category'] ?? null
                     );
-                    
-                    // Debug log
-                    error_log('Received POST data: ' . print_r($_POST, true));
                     
                     // Handle file upload
                     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {

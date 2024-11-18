@@ -8,16 +8,7 @@ class Get {
     public function getMenuItems() {
         global $conn;
 
-        $sql = "SELECT p.*, 
-                CASE 
-                    WHEN MIN(i.stock_quantity / NULLIF(pi.quantity_needed, 0)) < 1 THEN false 
-                    ELSE true 
-                END as is_available
-                FROM product p
-                LEFT JOIN product_ingredients pi ON p.product_id = pi.product_id
-                LEFT JOIN inventory i ON pi.inventory_id = i.inventory_id
-                GROUP BY p.product_id";
-        
+        $sql = "SELECT * FROM product";
         $stmt = $conn->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -141,31 +132,5 @@ class Get {
                 "message" => "Failed to fetch sales data: " . $e->getMessage()
             ];
         }
-    }
-    public function checkIngredientAvailability($product_id, $quantity) {
-        global $conn;
-        
-        $sql = "SELECT i.item_name, i.stock_quantity, (pi.quantity_needed * :order_quantity) as needed_quantity 
-                FROM inventory i 
-                JOIN product_ingredients pi ON i.inventory_id = pi.inventory_id 
-                WHERE pi.product_id = :product_id 
-                HAVING stock_quantity < needed_quantity";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':product_id', $product_id);
-        $stmt->bindParam(':order_quantity', $quantity);
-        $stmt->execute();
-        
-        $insufficient = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if (count($insufficient) > 0) {
-            return [
-                "status" => false,
-                "message" => "Insufficient ingredients",
-                "details" => $insufficient
-            ];
-        }
-        
-        return ["status" => true];
     }
 }
