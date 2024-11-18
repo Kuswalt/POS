@@ -66,19 +66,36 @@ class Post {
 
     public function addItemStock($data) {
         global $conn;
-        $stock_quantity = $data['stock_quantity'];
-        $item_name = $data['item_name'];
-
-        $sql = "INSERT INTO inventory (item_name, stock_quantity, last_updated) VALUES (:item_name, :stock_quantity, NOW())";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':item_name', $item_name);
-        $stmt->bindParam(':stock_quantity', $stock_quantity);
-
+        
         try {
+            $conn->beginTransaction();
+            
+            // Insert into inventory
+            $sql = "INSERT INTO inventory (item_name, stock_quantity, unit_of_measure, last_updated) 
+                    VALUES (:item_name, :stock_quantity, :unit_of_measure, NOW())";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':item_name', $data['item_name']);
+            $stmt->bindParam(':stock_quantity', $data['stock_quantity']);
+            $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
             $stmt->execute();
+            
             $inventory_id = $conn->lastInsertId();
-            return ["status" => true, "message" => "Item stock added successfully", "inventory_id" => $inventory_id];
+            
+            // Update product_ingredients with the ingredient name
+            $updateSql = "UPDATE product_ingredients 
+                         SET ingredient_name = :ingredient_name 
+                         WHERE inventory_id = :inventory_id";
+            $updateStmt = $conn->prepare($updateSql);
+            $updateStmt->bindParam(':ingredient_name', $data['item_name']);
+            $updateStmt->bindParam(':inventory_id', $inventory_id);
+            $updateStmt->execute();
+            
+            $conn->commit();
+            return ["status" => true, "message" => "Item stock added successfully"];
+            
         } catch (PDOException $e) {
+            $conn->rollBack();
             return ["status" => false, "message" => "Failed to add item stock: " . $e->getMessage()];
         }
     }
@@ -454,6 +471,36 @@ class Post {
             $oldQuantity,
             $newQuantity
         ));
+    }
+
+    public function addProductIngredient($data) {
+        global $conn;
+        
+        try {
+            // First get the ingredient name from inventory
+            $getNameSql = "SELECT item_name FROM inventory WHERE inventory_id = :inventory_id";
+            $stmt = $conn->prepare($getNameSql);
+            $stmt->bindParam(':inventory_id', $data['inventory_id']);
+            $stmt->execute();
+            $ingredient = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $sql = "INSERT INTO product_ingredients 
+                    (product_id, inventory_id, ingredient_name, quantity_needed) 
+                    VALUES 
+                    (:product_id, :inventory_id, :ingredient_name, :quantity_needed)";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $data['product_id']);
+            $stmt->bindParam(':inventory_id', $data['inventory_id']);
+            $stmt->bindParam(':ingredient_name', $ingredient['item_name']);
+            $stmt->bindParam(':quantity_needed', $data['quantity_needed']);
+            
+            $stmt->execute();
+            return ["status" => true, "message" => "Product ingredient added successfully"];
+            
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => "Failed to add product ingredient: " . $e->getMessage()];
+        }
     }
 }
 ?>

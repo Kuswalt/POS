@@ -152,31 +152,44 @@ class Get {
             ];
         }
     }
-    public function checkIngredientAvailability($product_id, $quantity) {
+    public function checkIngredientAvailability($product_id) {
         global $conn;
         
-        $sql = "SELECT i.item_name, i.stock_quantity, (pi.quantity_needed * :order_quantity) as needed_quantity 
-                FROM inventory i 
-                JOIN product_ingredients pi ON i.inventory_id = pi.inventory_id 
-                WHERE pi.product_id = :product_id 
-                HAVING stock_quantity < needed_quantity";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':product_id', $product_id);
-        $stmt->bindParam(':order_quantity', $quantity);
-        $stmt->execute();
-        
-        $insufficient = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if (count($insufficient) > 0) {
+        try {
+            $sql = "SELECT i.item_name, i.stock_quantity, pi.quantity_needed,
+                    (i.stock_quantity < pi.quantity_needed) as is_insufficient
+                    FROM inventory i 
+                    JOIN product_ingredients pi ON i.inventory_id = pi.inventory_id 
+                    WHERE pi.product_id = :product_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $product_id);
+            $stmt->execute();
+            
+            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($ingredients as $ingredient) {
+                if ($ingredient['is_insufficient']) {
+                    return [
+                        "status" => false,
+                        "available" => false,
+                        "message" => "Insufficient " . $ingredient['item_name']
+                    ];
+                }
+            }
+            
+            return [
+                "status" => true,
+                "available" => true,
+                "message" => "Product available"
+            ];
+            
+        } catch (PDOException $e) {
             return [
                 "status" => false,
-                "message" => "Insufficient ingredients",
-                "details" => $insufficient
+                "message" => "Error checking availability: " . $e->getMessage()
             ];
         }
-        
-        return ["status" => true];
     }
     public function getProductIngredients($product_id) {
         global $conn;

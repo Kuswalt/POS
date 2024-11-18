@@ -40,6 +40,13 @@
         </a>
       </li>
       <li>
+        <a class="flex items-center" on:click={() => selectCategory('Nachos')} aria-label="Nachos">
+          <span class={"flex items-center justify-center text-green-100 hover:bg-green-400 hover:cursor-pointer h-12 w-12 rounded-full " + (selectedCategory === 'Nachos' ? "bg-green-400" : "")}>
+            <i class="fa-solid fa-cookie-bite"></i>
+          </span>
+        </a>
+      </li>
+      <li>
         <a class="flex items-center" on:click={() => selectCategory('Drinks')} aria-label="Drinks">
           <span class={"flex items-center justify-center text-green-100 hover:bg-green-400 hover:cursor-pointer h-12 w-12 rounded-full " + (selectedCategory === 'Drinks' ? "bg-green-400" : "")}>
             <i class="fa-solid fa-whiskey-glass"></i>

@@ -9,15 +9,48 @@ class Delete {
         global $conn;
         $inventory_id = $data['inventory_id'];
 
-        $sql = "DELETE FROM inventory WHERE inventory_id = :inventory_id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':inventory_id', $inventory_id);
-
         try {
+            $conn->beginTransaction();
+
+            // Get all products using this ingredient
+            $checkSql = "SELECT p.name as product_name, p.product_id, pi.quantity_needed 
+                        FROM product_ingredients pi 
+                        JOIN product p ON pi.product_id = p.product_id 
+                        WHERE pi.inventory_id = :inventory_id";
+            $checkStmt = $conn->prepare($checkSql);
+            $checkStmt->bindParam(':inventory_id', $inventory_id);
+            $checkStmt->execute();
+            $usedInProducts = $checkStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (count($usedInProducts) > 0) {
+                $productList = array_map(function($p) {
+                    return $p['product_name'];
+                }, $usedInProducts);
+                
+                $conn->rollBack();
+                return [
+                    "status" => false, 
+                    "message" => "Cannot delete this ingredient as it is being used in the following products: " . 
+                                implode(", ", $productList) . ". Please remove it from these products first.",
+                    "products" => $usedInProducts
+                ];
+            }
+
+            // If not used in any products, proceed with deletion
+            $sql = "DELETE FROM inventory WHERE inventory_id = :inventory_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':inventory_id', $inventory_id);
             $stmt->execute();
+            
+            $conn->commit();
             return ["status" => true, "message" => "Item stock deleted successfully"];
+
         } catch (PDOException $e) {
-            return ["status" => false, "message" => "Failed to delete item stock: " . $e->getMessage()];
+            $conn->rollBack();
+            return [
+                "status" => false, 
+                "message" => "Failed to delete item stock: " . $e->getMessage()
+            ];
         }
     }
 
@@ -28,7 +61,13 @@ class Delete {
         try {
             $conn->beginTransaction();
             
-            // Delete from order_item first
+            // First delete from product_ingredients
+            $deleteIngredientsSQL = "DELETE FROM product_ingredients WHERE product_id = :id";
+            $stmt = $conn->prepare($deleteIngredientsSQL);
+            $stmt->bindParam(':id', $id);
+            $stmt->execute();
+            
+            // Delete from order_item
             $deleteOrderItemSql = "DELETE FROM order_item WHERE product_id = :id";
             $stmt = $conn->prepare($deleteOrderItemSql);
             $stmt->bindParam(':id', $id);

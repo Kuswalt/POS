@@ -144,6 +144,13 @@ try {
                     $product_id = $_GET['product_id'];
                     echo json_encode($get->getProductIngredients($product_id));
                     exit;
+                case 'check-product-availability':
+                    if (!isset($_GET['product_id'])) {
+                        echo json_encode(["status" => false, "message" => "Product ID is required"]);
+                        exit;
+                    }
+                    echo json_encode($get->checkIngredientAvailability($_GET['product_id']));
+                    break;
                 default:
                     echo json_encode(["error" => "Invalid request"]);
                     http_response_code(400);

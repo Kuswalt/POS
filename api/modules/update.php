@@ -93,4 +93,38 @@ class Update {
             ];
         }
     }
+
+    public function updateProductIngredient($data) {
+        global $conn;
+        
+        try {
+            // Get the ingredient name if inventory_id is provided
+            if (isset($data['inventory_id'])) {
+                $getNameSql = "SELECT item_name FROM inventory WHERE inventory_id = :inventory_id";
+                $stmt = $conn->prepare($getNameSql);
+                $stmt->bindParam(':inventory_id', $data['inventory_id']);
+                $stmt->execute();
+                $ingredient = $stmt->fetch(PDO::FETCH_ASSOC);
+                $data['ingredient_name'] = $ingredient['item_name'];
+            }
+
+            $sql = "UPDATE product_ingredients 
+                    SET inventory_id = :inventory_id,
+                        ingredient_name = :ingredient_name,
+                        quantity_needed = :quantity_needed
+                    WHERE product_ingredient_id = :product_ingredient_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_ingredient_id', $data['product_ingredient_id']);
+            $stmt->bindParam(':inventory_id', $data['inventory_id']);
+            $stmt->bindParam(':ingredient_name', $data['ingredient_name']);
+            $stmt->bindParam(':quantity_needed', $data['quantity_needed']);
+            
+            $stmt->execute();
+            return ["status" => true, "message" => "Product ingredient updated successfully"];
+            
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => "Failed to update product ingredient: " . $e->getMessage()];
+        }
+    }
 }

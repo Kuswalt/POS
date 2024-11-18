@@ -121,11 +121,12 @@
     if (!editItem) return;
 
     // Validate size for Drinks and Pizza
-    if (['Drinks', 'Pizza'].includes(editItem.category) && (!editItem.size || editItem.size === 'base-size')) {
-      alertMessage = `Please select a size for ${editItem.category}`;
-      alertType = 'warning';
-      showAlert = true;
-      return;
+    if (['Drinks', 'Pizza'].includes(editItem.category) && !editItem.size) {
+        alertMessage = `Please select a size for ${editItem.category}`;
+        alertType = 'warning';
+        showAlert = true;
+        setTimeout(() => showAlert = false, 3000);
+        return;
     }
 
     const formData = new FormData();
@@ -134,37 +135,44 @@
     formData.append('price', editItem.price);
     formData.append('category', editItem.category);
     
-    // Handle size based on category
-    const size = ['Drinks', 'Pizza'].includes(editItem.category) ? editItem.size : 'base-size';
+    // Only send size if it's Drinks or Pizza category
+    const size = ['Drinks', 'Pizza'].includes(editItem.category) 
+        ? editItem.size 
+        : 'base-size';
     formData.append('size', size);
     
     // Handle image upload if a new image was selected
     if (editItem.image instanceof File) {
-      formData.append('image', editItem.image);
+        formData.append('image', editItem.image);
     }
 
-    const response = await fetch('http://localhost/POS/api/routes.php?request=update-menu-item', {
-      method: 'POST',
-      body: formData,
-    });
-    
-    const result = await response.json();
-    
-    if (result.status) {
-      alertMessage = "Menu item updated successfully";
-      alertType = 'success';
-      await fetchItems();
-      isEditModalOpen = false;
-    } else {
-      alertMessage = result.message;
-      alertType = 'error';
+    try {
+        const response = await fetch('http://localhost/POS/api/routes.php?request=update-menu-item', {
+            method: 'POST',
+            body: formData,
+        });
+        
+        const result = await response.json();
+        
+        if (result.status) {
+            alertMessage = "Menu item updated successfully";
+            alertType = 'success';
+            await fetchItems();
+            isEditModalOpen = false;
+        } else {
+            alertMessage = result.message || "Failed to update item";
+            alertType = 'error';
+        }
+        
+        showAlert = true;
+        setTimeout(() => showAlert = false, 3000);
+    } catch (error) {
+        alertMessage = "Error updating item: Network error";
+        alertType = 'error';
+        showAlert = true;
+        setTimeout(() => showAlert = false, 3000);
+        console.error('Error:', error);
     }
-    
-    showAlert = true;
-    // Auto-hide alert after 3 seconds
-    setTimeout(() => {
-      showAlert = false;
-    }, 3000);
   }
 
   async function deleteItem(itemId: number) {
@@ -184,7 +192,14 @@
   }
 
   function startEdit(item: Item) {
-    editItem = { ...item };
+    // Create a copy of the item with the correct size
+    editItem = { 
+        ...item,
+        // If category is Drinks or Pizza and size is 'base-size', set it to empty to force selection
+        size: ['Drinks', 'Pizza'].includes(item.category) && item.size === 'base-size' 
+            ? '' 
+            : item.size
+    };
     isEditModalOpen = true;
   }
 

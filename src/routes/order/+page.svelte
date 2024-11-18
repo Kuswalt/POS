@@ -15,6 +15,7 @@
     price: number;
     category: string;
     size?: string;
+    isAvailable?: boolean;
   };
   type CartItem = {
     product_id: number;
@@ -77,43 +78,22 @@
     }
   }
 
-  async function checkInventoryStock(product: Product, quantity: number = 1): Promise<boolean> {
+  async function checkInventoryStock(product: Product): Promise<boolean> {
     try {
         const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${product.product_id}`);
+        const result = await response.json();
         
-        // Log the raw response for debugging
-        const responseText = await response.text();
-        console.log('Raw API Response:', responseText);
-
-        // Try to parse the response as JSON
-        let result;
-        try {
-            result = JSON.parse(responseText);
-        } catch (e) {
-            console.error('Failed to parse JSON response:', e);
-            console.log('Response that failed to parse:', responseText);
+        if (!result.status || !result.data) {
             return false;
         }
 
-        if (!result.status) {
-            console.error('API Error:', result.message);
-            return false;
-        }
-
-        // If no ingredients found, assume it's okay to proceed
-        if (!result.data || result.data.length === 0) {
-            return true;
-        }
-
-        // Check if any ingredient would go below 0
+        // Check if any ingredient is insufficient
         for (const ingredient of result.data) {
-            const requiredQuantity = ingredient.quantity_needed * quantity;
-            if (ingredient.stock_quantity < requiredQuantity) {
-                alert(`Insufficient stock of ${ingredient.item_name} for this order`);
+            if (ingredient.stock_quantity < ingredient.quantity_needed) {
                 return false;
             }
         }
-
+        
         return true;
     } catch (error) {
         console.error('Error checking inventory:', error);
