@@ -29,6 +29,7 @@
     category: string;
     quantity: number;
     size_name?: string;
+    size_id?: number;
   };
 
   let y = 0;
@@ -134,8 +135,19 @@
   $: categories = ['All', ...new Set(products.map(p => p.category))];
   $: total = getTotal();
 
-  async function handleSizeSelect(sizeId: number, price: string) {
+  async function handleSizeSelect(sizeId: number, price: string, sizeName: string) {
     if (!selectedProduct) return;
+
+    const existingItem = cartItems.find(item => 
+      item.product_id === (selectedProduct as Product).product_id && 
+      item.size_id === sizeId
+    );
+
+    if (existingItem) {
+      updateQuantity(existingItem.id, existingItem.quantity + 1);
+      showSizeModal = false;
+      return;
+    }
 
     try {
       const data = {
@@ -143,7 +155,8 @@
         size_id: sizeId,
         quantity: 1,
         user_id: userId,
-        price: price
+        price: price,
+        size_name: sizeName
       };
 
       const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
@@ -323,7 +336,7 @@
       ...selectedProduct,
       price: selectedProduct.price.toString()
     }}
-    onSelect={handleSizeSelect}
+    onSelect={(sizeId, price) => handleSizeSelect(sizeId, price, '')}
     onClose={() => {
       showSizeModal = false;
     }}

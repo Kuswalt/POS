@@ -286,46 +286,23 @@ class Get {
     public function getCartItems($user_id) {
         global $conn;
         
+        $sql = "SELECT c.cart_id as id, c.product_id, p.name, 
+                COALESCE(ps.price, p.price) as price, c.quantity, p.image,
+                ps.size_id, ps.size_name
+                FROM cart c
+                JOIN products p ON c.product_id = p.product_id
+                LEFT JOIN product_sizes ps ON c.size_id = ps.size_id
+                WHERE c.user_id = :user_id";
+                
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':user_id', $user_id);
+        
         try {
-            $sql = "SELECT c.*, p.name, p.image, p.price, p.category
-                    FROM cart c
-                    JOIN product p ON c.product_id = p.product_id
-                    WHERE c.user_id = :user_id
-                    ORDER BY c.product_id DESC";
-                    
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':user_id', $user_id);
             $stmt->execute();
-            
-            $cartItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            if (empty($cartItems)) {
-                return [
-                    "status" => true,
-                    "data" => []
-                ];
-            }
-            
-            return [
-                "status" => true,
-                "data" => array_map(function($item) {
-                    return [
-                        'id' => $item['product_id'],
-                        'product_id' => $item['product_id'],
-                        'name' => $item['name'],
-                        'image' => $item['image'],
-                        'price' => $item['price'],
-                        'category' => $item['category'],
-                        'quantity' => $item['quantity']
-                    ];
-                }, $cartItems)
-            ];
-            
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return ["status" => true, "data" => $items];
         } catch (PDOException $e) {
-            return [
-                "status" => false,
-                "message" => "Failed to fetch cart items: " . $e->getMessage()
-            ];
+            return ["status" => false, "message" => "Failed to fetch cart items: " . $e->getMessage()];
         }
     }
 }

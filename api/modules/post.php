@@ -135,41 +135,47 @@ class Post {
     public function addToCart($data) {
         global $conn;
         
-        // Debug logging
-        error_log('Received data: ' . print_r($data, true));
-        
-        if (!isset($data['product_id'], $data['quantity'], $data['user_id'])) {
-            $missing = array_diff(['product_id', 'quantity', 'user_id'], array_keys($data));
-            return [
-                "status" => false, 
-                "message" => "Missing required fields: " . implode(', ', $missing),
-                "received" => $data
-            ];
-        }
-        
-        $product_id = $data['product_id'];
-        $quantity = $data['quantity'];
-        $user_id = $data['user_id'];
-        
-        // First, check if the product exists
-        $checkProduct = "SELECT product_id FROM product WHERE product_id = :product_id";
-        $stmt = $conn->prepare($checkProduct);
-        $stmt->bindParam(':product_id', $product_id);
+        // Check if item with same product and size exists
+        $sql = "SELECT cart_id, quantity FROM cart 
+                WHERE user_id = :user_id 
+                AND product_id = :product_id 
+                AND size_id = :size_id";
+                
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':user_id', $data['user_id']);
+        $stmt->bindParam(':product_id', $data['product_id']);
+        $stmt->bindParam(':size_id', $data['size_id']);
         $stmt->execute();
         
-        if (!$stmt->fetch()) {
-            return ["status" => false, "message" => "Product not found"];
+        $existingItem = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existingItem) {
+            // Update quantity of existing item
+            $sql = "UPDATE cart 
+                    SET quantity = quantity + :quantity 
+                    WHERE cart_id = :cart_id";
+                    
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':quantity', $data['quantity']);
+            $stmt->bindParam(':cart_id', $existingItem['cart_id']);
+            
+            try {
+                $stmt->execute();
+                return ["status" => true, "message" => "Cart quantity updated successfully"];
+            } catch (PDOException $e) {
+                return ["status" => false, "message" => "Failed to update cart: " . $e->getMessage()];
+            }
         }
         
-        $sql = "INSERT INTO cart (user_id, product_id, quantity) 
-                VALUES (:user_id, :product_id, :quantity)
-                ON DUPLICATE KEY UPDATE quantity = quantity + :new_quantity";
-        
+        // Add new item to cart
+        $sql = "INSERT INTO cart (user_id, product_id, quantity, size_id) 
+                VALUES (:user_id, :product_id, :quantity, :size_id)";
+                
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':user_id', $user_id);
-        $stmt->bindParam(':product_id', $product_id);
-        $stmt->bindParam(':quantity', $quantity);
-        $stmt->bindParam(':new_quantity', $quantity);
+        $stmt->bindParam(':user_id', $data['user_id']);
+        $stmt->bindParam(':product_id', $data['product_id']);
+        $stmt->bindParam(':quantity', $data['quantity']);
+        $stmt->bindParam(':size_id', $data['size_id']);
         
         try {
             $stmt->execute();

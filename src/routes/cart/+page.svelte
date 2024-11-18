@@ -6,6 +6,8 @@
     price: number;
     quantity: number;
     image?: string;
+    size_id?: number;
+    size_name?: string;
   }
 
   export let cartItems: CartItem[] = [];
@@ -293,6 +295,7 @@
         <img src={item.image ? `uploads/${item.image}` : 'placeholder.jpg'} alt={item.name} class="cart-item-image" />
         <div class="cart-item-details">
           <h3>{item.name}</h3>
+          <p class="size-info">{item.size_name || 'Regular'}</p>
           <p>₱{item.price}</p>
           <div class="quantity-controls">
             <button on:click={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
