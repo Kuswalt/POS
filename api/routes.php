@@ -93,6 +93,11 @@ try {
                     echo json_encode(["status" => true, "message" => "Logged out successfully"]);
                     break;
                     
+                case 'add-product-ingredient':
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    echo json_encode($post->addProductIngredient($data));
+                    break;
+                    
                 default:
                     // For other POST requests, use JSON
                     $data = json_decode(file_get_contents("php://input"), true);
@@ -151,6 +156,18 @@ try {
                     }
                     echo json_encode($get->checkIngredientAvailability($_GET['product_id']));
                     break;
+                case 'get-products-using-ingredient':
+                    $inventory_id = $_GET['inventory_id'] ?? null;
+                    if ($inventory_id) {
+                        $result = $get->getProductsUsingIngredient($inventory_id);
+                        echo json_encode($result);
+                    } else {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Inventory ID is required"
+                        ]);
+                    }
+                    break;
                 default:
                     echo json_encode(["error" => "Invalid request"]);
                     http_response_code(400);
@@ -183,6 +200,10 @@ try {
                     
                     echo json_encode($update->updateMenuItem($data));
                     break;
+                case 'update-product-ingredient':
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    echo json_encode($update->updateProductIngredient($data));
+                    break;
                 default:
                     $data = json_decode(file_get_contents("php://input"), true);
                     switch ($request[0]) {
@@ -211,6 +232,10 @@ try {
                     break;
                 case 'delete-all-orders':
                     echo json_encode($delete->deleteAllOrders());
+                    break;
+                case 'delete-product-ingredient':
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    echo json_encode($delete->deleteProductIngredient($data));
                     break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);

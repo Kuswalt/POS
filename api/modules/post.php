@@ -66,11 +66,7 @@ class Post {
 
     public function addItemStock($data) {
         global $conn;
-        
         try {
-            $conn->beginTransaction();
-            
-            // Insert into inventory
             $sql = "INSERT INTO inventory (item_name, stock_quantity, unit_of_measure, last_updated) 
                     VALUES (:item_name, :stock_quantity, :unit_of_measure, NOW())";
             
@@ -80,23 +76,21 @@ class Post {
             $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
             $stmt->execute();
             
-            $inventory_id = $conn->lastInsertId();
-            
-            // Update product_ingredients with the ingredient name
-            $updateSql = "UPDATE product_ingredients 
-                         SET ingredient_name = :ingredient_name 
-                         WHERE inventory_id = :inventory_id";
-            $updateStmt = $conn->prepare($updateSql);
-            $updateStmt->bindParam(':ingredient_name', $data['item_name']);
-            $updateStmt->bindParam(':inventory_id', $inventory_id);
-            $updateStmt->execute();
-            
-            $conn->commit();
-            return ["status" => true, "message" => "Item stock added successfully"];
-            
+            return [
+                "status" => true,
+                "message" => "Item added successfully"
+            ];
         } catch (PDOException $e) {
-            $conn->rollBack();
-            return ["status" => false, "message" => "Failed to add item stock: " . $e->getMessage()];
+            if (strpos($e->getMessage(), 'Duplicate') !== false) {
+                return [
+                    "status" => false,
+                    "message" => "This ingredient already exists!"
+                ];
+            }
+            return [
+                "status" => false,
+                "message" => "Error adding item: " . $e->getMessage()
+            ];
         }
     }
 
@@ -477,29 +471,81 @@ class Post {
         global $conn;
         
         try {
-            // First get the ingredient name from inventory
+            // Check if ingredient already exists in recipe
+            $checkSql = "SELECT COUNT(*) FROM product_ingredients 
+                        WHERE product_id = :product_id AND inventory_id = :inventory_id";
+            $checkStmt = $conn->prepare($checkSql);
+            $checkStmt->bindParam(':product_id', $data['product_id']);
+            $checkStmt->bindParam(':inventory_id', $data['inventory_id']);
+            $checkStmt->execute();
+            
+            if ($checkStmt->fetchColumn() > 0) {
+                return [
+                    "status" => false,
+                    "message" => "This ingredient is already in the recipe"
+                ];
+            }
+
+            // Get ingredient name from inventory
             $getNameSql = "SELECT item_name FROM inventory WHERE inventory_id = :inventory_id";
             $stmt = $conn->prepare($getNameSql);
             $stmt->bindParam(':inventory_id', $data['inventory_id']);
             $stmt->execute();
             $ingredient = $stmt->fetch(PDO::FETCH_ASSOC);
 
+            // Insert new ingredient
             $sql = "INSERT INTO product_ingredients 
-                    (product_id, inventory_id, ingredient_name, quantity_needed) 
+                    (product_id, inventory_id, ingredient_name, quantity_needed, unit_of_measure) 
                     VALUES 
-                    (:product_id, :inventory_id, :ingredient_name, :quantity_needed)";
+                    (:product_id, :inventory_id, :ingredient_name, :quantity_needed, :unit_of_measure)";
             
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':product_id', $data['product_id']);
             $stmt->bindParam(':inventory_id', $data['inventory_id']);
             $stmt->bindParam(':ingredient_name', $ingredient['item_name']);
             $stmt->bindParam(':quantity_needed', $data['quantity_needed']);
-            
+            $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
             $stmt->execute();
-            return ["status" => true, "message" => "Product ingredient added successfully"];
-            
+
+            return ["status" => true, "message" => "Ingredient added successfully"];
         } catch (PDOException $e) {
-            return ["status" => false, "message" => "Failed to add product ingredient: " . $e->getMessage()];
+            return ["status" => false, "message" => $e->getMessage()];
+        }
+    }
+
+    public function updateProductIngredient($data) {
+        global $conn;
+        try {
+            $sql = "UPDATE product_ingredients 
+                    SET quantity_needed = :quantity_needed,
+                        unit_of_measure = :unit_of_measure
+                    WHERE product_ingredient_id = :product_ingredient_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_ingredient_id', $data['product_ingredient_id']);
+            $stmt->bindParam(':quantity_needed', $data['quantity_needed']);
+            $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
+            $stmt->execute();
+            
+            return ["status" => true, "message" => "Ingredient updated successfully"];
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => $e->getMessage()];
+        }
+    }
+
+    public function deleteProductIngredient($data) {
+        global $conn;
+        try {
+            $sql = "DELETE FROM product_ingredients 
+                    WHERE product_ingredient_id = :product_ingredient_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_ingredient_id', $data['product_ingredient_id']);
+            $stmt->execute();
+            
+            return ["status" => true, "message" => "Ingredient removed successfully"];
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => $e->getMessage()];
         }
     }
 }

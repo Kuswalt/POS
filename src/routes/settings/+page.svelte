@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Header from '$lib/header.svelte';
   import Alert from '$lib/components/Alert.svelte';
+  import RecipeManager from '$lib/RecipeManager.svelte';
 
   let y = 0;
   let innerHeight = 0;
@@ -23,6 +24,8 @@
   let showAlert = false;
   let alertMessage = '';
   let alertType: 'success' | 'warning' | 'error' = 'warning';
+  let showRecipeManager = false;
+  let selectedProduct = null;
 
   onMount(async () => {
     await fetchItems();
@@ -227,6 +230,11 @@
       editItem.size = '';
     }
   }
+
+  function openRecipeManager(product) {
+    selectedProduct = product;
+    showRecipeManager = true;
+  }
 </script>
 
 <Header {y} {innerHeight} />
@@ -390,6 +398,12 @@
             <div class="item-actions">
               <button on:click={() => startEdit(item)} class="edit-btn">Edit</button>
               <button on:click={() => deleteItem(item.product_id)} class="delete-btn">Delete</button>
+              <button
+                on:click={() => openRecipeManager(item)}
+                class="bg-blue-500 text-white px-2 py-1 rounded-md text-sm"
+              >
+                Manage Recipe
+              </button>
             </div>
           </div>
         </div>
@@ -397,6 +411,23 @@
     </div>
   </div>
 </div>
+
+{#if showRecipeManager && selectedProduct}
+  <div class="modal-backdrop">
+    <div class="modal-content max-w-2xl">
+      <RecipeManager 
+        productId={selectedProduct.product_id}
+        productName={selectedProduct.name}
+      />
+      <button
+        class="mt-4 bg-gray-500 text-white px-4 py-2 rounded-md"
+        on:click={() => showRecipeManager = false}
+      >
+        Close
+      </button>
+    </div>
+  </div>
+{/if}
 
 <style>
   .settings-container {

@@ -42,6 +42,7 @@
         editingItem = item.inventory_id;
         itemName = item.item_name;
         stockQuantity = item.stock_quantity;
+        unitOfMeasure = item.unit_of_measure;
         isEditModalOpen = true;
     }
 
@@ -114,6 +115,7 @@
                 inventory_id: inventoryId,
                 item_name: itemName,
                 stock_quantity: stockQuantity,
+                unit_of_measure: unitOfMeasure
             }),
         });
         const result = await response.json();
@@ -184,13 +186,24 @@
         try {
             const response = await fetch(`http://localhost/POS/api/routes.php?request=get-products-using-ingredient&inventory_id=${item.inventory_id}`);
             const result = await response.json();
+            
             if (result.status) {
-                usedInProducts = result.data;
-                selectedItem = item;
-                showProductsModal = true;
+                productsUsingIngredient = result.data;
+                currentIngredient = item;
+                showDependencyModal = true;
+            } else {
+                console.error('Error:', result.message);
+                alertMessage = "Failed to fetch products using this ingredient";
+                alertType = 'error';
+                showAlert = true;
+                setTimeout(() => showAlert = false, 3000);
             }
         } catch (error) {
             console.error('Error fetching products:', error);
+            alertMessage = "Failed to fetch products";
+            alertType = 'error';
+            showAlert = true;
+            setTimeout(() => showAlert = false, 3000);
         }
     }
 </script>
@@ -264,11 +277,10 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Quantity</th>
-                            <th>Unit</th>
+                            <th>Item Name</th>
+                            <th>Stock Quantity</th>
+                            <th>Unit of Measure</th>
                             <th>Last Updated</th>
-                            <th>Used In Products</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -279,12 +291,15 @@
                                 <td>{item.stock_quantity}</td>
                                 <td>{item.unit_of_measure}</td>
                                 <td>{item.last_updated}</td>
-                                <td>
-                                    <button on:click={() => showUsedInProducts(item)}>View Products</button>
-                                </td>
-                                <td>
+                                <td class="flex gap-2">
                                     <button on:click={() => startEdit(item)}>Edit</button>
                                     <button on:click={() => deleteItemStock(item.inventory_id)}>Delete</button>
+                                    <button 
+                                        on:click={() => showUsedInProducts(item)}
+                                        class="bg-blue-500 text-white px-2 py-1 rounded"
+                                    >
+                                        Used In Products
+                                    </button>
                                 </td>
                             </tr>
                         {/each}
@@ -303,10 +318,23 @@
                 <button class="close-btn" on:click={closeEditModal}>&times;</button>
             </div>
             <div class="modal-body">
-                <input type="text" placeholder="Product name" bind:value={itemName} />
+                <input 
+                    type="text" 
+                    placeholder="Product name" 
+                    bind:value={itemName} 
+                    class="w-full p-2 border rounded-md"
+                />
                 <div class="quantity-input">
-                    <input type="number" placeholder="Quantity" bind:value={stockQuantity} />
-                    <select bind:value={unitOfMeasure}>
+                    <input 
+                        type="number" 
+                        placeholder="Quantity" 
+                        bind:value={stockQuantity} 
+                        class="flex-1 p-2 border rounded-md"
+                    />
+                    <select 
+                        bind:value={unitOfMeasure}
+                        class="p-2 border rounded-md min-w-[120px]"
+                    >
                         <option value="pieces">Pieces</option>
                         <option value="grams">Grams</option>
                         <option value="kilograms">Kilograms</option>
@@ -357,19 +385,37 @@
 {#if showDependencyModal && currentIngredient}
     <div class="modal-backdrop">
         <div class="modal-content">
-            <h2>Cannot Delete {currentIngredient.item_name}</h2>
-            <p>This ingredient is being used in the following products:</p>
-            <ul class="product-list">
-                {#each productsUsingIngredient as product}
-                    <li>
-                        <span>{product.product_name}</span>
-                        <span>Quantity needed: {product.quantity_needed}</span>
-                    </li>
-                {/each}
-            </ul>
-            <p class="text-red-600">Please remove this ingredient from these products before deleting.</p>
+            <h2 class="text-xl font-bold mb-4">
+                Products Using {currentIngredient.item_name}
+            </h2>
+            <div class="product-list-container max-h-96 overflow-y-auto">
+                {#if productsUsingIngredient.length === 0}
+                    <p>No products are using this ingredient.</p>
+                {:else}
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Quantity Needed</th>
+                                <th>Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each productsUsingIngredient as product}
+                                <tr>
+                                    <td>{product.product_name}</td>
+                                    <td>{product.category}</td>
+                                    <td>{product.quantity_needed}</td>
+                                    <td>{currentIngredient.unit_of_measure}</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                {/if}
+            </div>
             <button 
-                class="close-btn"
+                class="mt-4 bg-gray-500 text-white px-4 py-2 rounded"
                 on:click={() => showDependencyModal = false}
             >
                 Close

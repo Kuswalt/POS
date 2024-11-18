@@ -78,26 +78,27 @@
     }
   }
 
-  async function checkInventoryStock(product: Product): Promise<boolean> {
+  async function checkInventoryStock(product: Product): Promise<{ available: boolean; message: string }> {
     try {
-        const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${product.product_id}`);
-        const result = await response.json();
-        
-        if (!result.status || !result.data) {
-            return false;
-        }
+      const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${product.product_id}`);
+      const result = await response.json();
+      
+      // If no recipe found
+      if (!result.status || !result.data || result.data.length === 0) {
+        return { available: false, message: 'No Recipe Set' };
+      }
 
-        // Check if any ingredient is insufficient
-        for (const ingredient of result.data) {
-            if (ingredient.stock_quantity < ingredient.quantity_needed) {
-                return false;
-            }
+      // Check if any ingredient is insufficient
+      for (const ingredient of result.data) {
+        if (ingredient.stock_quantity < ingredient.quantity_needed) {
+          return { available: false, message: 'Unavailable' };
         }
-        
-        return true;
+      }
+      
+      return { available: true, message: '' };
     } catch (error) {
-        console.error('Error checking inventory:', error);
-        return false;
+      console.error('Error checking inventory:', error);
+      return { available: false, message: 'Error' };
     }
   }
 

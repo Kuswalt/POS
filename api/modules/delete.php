@@ -196,4 +196,29 @@ class Delete {
             return ["status" => false, "message" => "Failed to delete orders: " . $e->getMessage()];
         }
     }
+
+    public function deleteProductIngredient($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            $stmt = $conn->prepare("DELETE FROM product_ingredients WHERE product_id = :product_id AND inventory_id = :inventory_id");
+            $stmt->bindParam(':product_id', $data['product_id']);
+            $stmt->bindParam(':inventory_id', $data['inventory_id']);
+            $stmt->execute();
+            
+            if ($stmt->rowCount() === 0) {
+                $conn->rollBack();
+                return ["status" => false, "message" => "No ingredient found to delete"];
+            }
+            
+            $conn->commit();
+            return ["status" => true, "message" => "Product ingredient deleted successfully"];
+            
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return ["status" => false, "message" => "Failed to delete product ingredient: " . $e->getMessage()];
+        }
+    }
 }

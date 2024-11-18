@@ -35,15 +35,22 @@ class Get {
     public function getItems() {
         global $conn;
         
-        $sql = "SELECT inventory_id, item_name, stock_quantity, last_updated FROM inventory ORDER BY item_name";
-        $stmt = $conn->prepare($sql);
-        
         try {
+            $sql = "SELECT inventory_id, item_name, stock_quantity, unit_of_measure, last_updated 
+                    FROM inventory 
+                    ORDER BY item_name";
+            $stmt = $conn->prepare($sql);
             $stmt->execute();
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            return ["status" => true, "data" => $items];
+            
+            return [
+                "status" => true,
+                "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)
+            ];
         } catch (PDOException $e) {
-            return ["status" => false, "message" => "Failed to fetch items: " . $e->getMessage()];
+            return [
+                "status" => false,
+                "message" => "Error fetching items: " . $e->getMessage()
+            ];
         }
     }
     public function getSalesData() {
@@ -195,27 +202,53 @@ class Get {
         global $conn;
         
         try {
-            $sql = "SELECT pi.*, i.item_name, i.stock_quantity 
-                    FROM product_ingredients pi
-                    JOIN inventory i ON pi.inventory_id = i.inventory_id
+            $sql = "SELECT pi.product_ingredient_id, pi.inventory_id, 
+                    i.item_name as ingredient_name, pi.quantity_needed,
+                    i.stock_quantity, i.unit_of_measure
+                    FROM product_ingredients pi 
+                    JOIN inventory i ON i.inventory_id = pi.inventory_id 
                     WHERE pi.product_id = :product_id";
             
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':product_id', $product_id);
             $stmt->execute();
             
-            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return [
+                "status" => true,
+                "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Error fetching ingredients: " . $e->getMessage()
+            ];
+        }
+    }
+    public function getProductsUsingIngredient($inventory_id) {
+        global $conn;
+        
+        try {
+            $sql = "SELECT p.name as product_name, p.category, 
+                    pi.quantity_needed, i.unit_of_measure
+                    FROM product_ingredients pi 
+                    JOIN product p ON p.product_id = pi.product_id
+                    JOIN inventory i ON i.inventory_id = pi.inventory_id
+                    WHERE pi.inventory_id = :inventory_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':inventory_id', $inventory_id);
+            $stmt->execute();
+            
+            $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             return [
                 "status" => true,
-                "data" => $ingredients
+                "data" => $products
             ];
-            
         } catch (PDOException $e) {
-            error_log("Error in getProductIngredients: " . $e->getMessage());
             return [
                 "status" => false,
-                "message" => "Failed to fetch product ingredients: " . $e->getMessage()
+                "message" => "Error fetching products: " . $e->getMessage()
             ];
         }
     }

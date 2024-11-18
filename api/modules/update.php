@@ -127,4 +127,5 @@ class Update {
             return ["status" => false, "message" => "Failed to update product ingredient: " . $e->getMessage()];
         }
     }
+    
 }
