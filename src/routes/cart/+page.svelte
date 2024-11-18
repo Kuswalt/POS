@@ -48,6 +48,11 @@
       return;
     }
 
+    if (amountPaid < total) {
+      alert('Amount paid cannot be less than the total amount');
+      return;
+    }
+
     try {
       // First save customer info
       const customerResponse = await fetch('http://localhost/POS/api/routes.php?request=add-customer', {
@@ -316,12 +321,17 @@
       bind:value={amountPaid}
       placeholder="Amount Paid"
       min={total}
-      class="input-field"
+      class="input-field {amountPaid < total ? 'invalid-amount' : ''}"
     />
     {#if amountPaid > 0}
       <div class="change-display">
         <span>Change: ₱{change.toFixed(2)}</span>
       </div>
+      {#if amountPaid < total}
+        <div class="error-message">
+          Amount paid must be at least ₱{total.toFixed(2)}
+        </div>
+      {/if}
     {/if}
   </div>
 
@@ -331,7 +341,7 @@
       <button 
         class="save-customer-btn"
         on:click={saveCustomer}
-        disabled={!customerName.trim() || !amountPaid}
+        disabled={!customerName.trim() || !amountPaid || amountPaid < total}
       >
         Proceed To Checkout
       </button>
@@ -611,5 +621,27 @@
 
   .print-btn:hover {
     background: #374151;
+  }
+
+  .invalid-amount {
+    border-color: #ef4444;
+    background-color: #fee2e2;
+  }
+
+  .invalid-amount:focus {
+    outline: none;
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  }
+
+  .error-message {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+
+  .save-customer-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
   }
 </style>

@@ -135,6 +135,15 @@ try {
                 case 'get-sales-data':
                     echo json_encode($get->getSalesData());
                     break;
+                case 'get-product-ingredients':
+                    if (!isset($_GET['product_id'])) {
+                        echo json_encode(["status" => false, "message" => "Product ID is required"]);
+                        exit;
+                    }
+                    
+                    $product_id = $_GET['product_id'];
+                    echo json_encode($get->getProductIngredients($product_id));
+                    exit;
                 default:
                     echo json_encode(["error" => "Invalid request"]);
                     http_response_code(400);

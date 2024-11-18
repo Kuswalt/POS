@@ -110,6 +110,24 @@
 
     import { onMount } from 'svelte';
     onMount(fetchItems);
+
+    let showProductsModal = false;
+    let selectedItem: any = null;
+    let usedInProducts: any[] = [];
+
+    async function showUsedInProducts(item: any) {
+        try {
+            const response = await fetch(`http://localhost/POS/api/routes.php?request=get-products-using-ingredient&inventory_id=${item.inventory_id}`);
+            const result = await response.json();
+            if (result.status) {
+                usedInProducts = result.data;
+                selectedItem = item;
+                showProductsModal = true;
+            }
+        } catch (error) {
+            console.error('Error fetching products:', error);
+        }
+    }
 </script>
 
 <div class="layout">
@@ -153,6 +171,7 @@
                             <th>Quantity</th>
                             <th>Unit</th>
                             <th>Last Updated</th>
+                            <th>Used In Products</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -163,6 +182,9 @@
                                 <td>{item.stock_quantity}</td>
                                 <td>{item.unit_of_measure}</td>
                                 <td>{item.last_updated}</td>
+                                <td>
+                                    <button on:click={() => showUsedInProducts(item)}>View Products</button>
+                                </td>
                                 <td>
                                     <button on:click={() => startEdit(item)}>Edit</button>
                                     <button on:click={() => deleteItemStock(item.inventory_id)}>Delete</button>
@@ -206,6 +228,31 @@
                     <button class="cancel-btn" on:click={closeEditModal}>Cancel</button>
                 </div>
             </div>
+        </div>
+    </div>
+{/if}
+
+{#if showProductsModal && selectedItem}
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h2>Products Using {selectedItem.item_name}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Quantity Needed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {#each usedInProducts as product}
+                        <tr>
+                            <td>{product.name}</td>
+                            <td>{product.quantity_needed} {selectedItem.unit_of_measure}</td>
+                        </tr>
+                    {/each}
+                </tbody>
+            </table>
+            <button on:click={() => showProductsModal = false}>Close</button>
         </div>
     </div>
 {/if}

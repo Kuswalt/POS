@@ -178,4 +178,32 @@ class Get {
         
         return ["status" => true];
     }
+    public function getProductIngredients($product_id) {
+        global $conn;
+        
+        try {
+            $sql = "SELECT pi.*, i.item_name, i.stock_quantity 
+                    FROM product_ingredients pi
+                    JOIN inventory i ON pi.inventory_id = i.inventory_id
+                    WHERE pi.product_id = :product_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $product_id);
+            $stmt->execute();
+            
+            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            return [
+                "status" => true,
+                "data" => $ingredients
+            ];
+            
+        } catch (PDOException $e) {
+            error_log("Error in getProductIngredients: " . $e->getMessage());
+            return [
+                "status" => false,
+                "message" => "Failed to fetch product ingredients: " . $e->getMessage()
+            ];
+        }
+    }
 }

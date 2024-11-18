@@ -77,7 +77,54 @@
     }
   }
 
+  async function checkInventoryStock(product: Product, quantity: number = 1): Promise<boolean> {
+    try {
+        const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${product.product_id}`);
+        
+        // Log the raw response for debugging
+        const responseText = await response.text();
+        console.log('Raw API Response:', responseText);
+
+        // Try to parse the response as JSON
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('Failed to parse JSON response:', e);
+            console.log('Response that failed to parse:', responseText);
+            return false;
+        }
+
+        if (!result.status) {
+            console.error('API Error:', result.message);
+            return false;
+        }
+
+        // If no ingredients found, assume it's okay to proceed
+        if (!result.data || result.data.length === 0) {
+            return true;
+        }
+
+        // Check if any ingredient would go below 0
+        for (const ingredient of result.data) {
+            const requiredQuantity = ingredient.quantity_needed * quantity;
+            if (ingredient.stock_quantity < requiredQuantity) {
+                alert(`Insufficient stock of ${ingredient.item_name} for this order`);
+                return false;
+            }
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error checking inventory:', error);
+        return false;
+    }
+  }
+
   async function addToCart(product: Product) {
+    const hasStock = await checkInventoryStock(product);
+    if (!hasStock) return;
+    
     const existingItem = cartItems.find(item => item.product_id === product.product_id);
     
     try {
@@ -174,6 +221,9 @@
   }
 
   async function handleSizeSelection(variant: Product) {
+    const hasStock = await checkInventoryStock(variant);
+    if (!hasStock) return;
+    
     showSizeModal = false;
     await addToCart(variant);
     selectedProduct = null;
@@ -183,7 +233,10 @@
 <Header {y} {innerHeight} />
 <div class="container">
   <div class="content">
-    <SideNav activeMenu="pos" />
+    <SideNav 
+      activeMenu="pos"
+      bind:selectedCategory={selectedCategory}
+    />
     
     <div class="main-content">
       <!-- Search Bar -->
@@ -194,18 +247,6 @@
           placeholder="Search products..."
           class="search-input"
         />
-      </div>
-
-      <!-- Category Filter -->
-      <div class="category-filter">
-        {#each categories as category}
-          <button 
-            class="category-btn {selectedCategory === category ? 'active' : ''}"
-            on:click={() => selectedCategory = category}
-          >
-            {category}
-          </button>
-        {/each}
       </div>
 
       <!-- Products Grid -->

@@ -394,5 +394,66 @@ class Post {
             ];
         }
     }
+
+    public function processCartCheckout($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Existing checkout code...
+            
+            // After processing the order, update inventory
+            $sql = "SELECT c.product_id, c.quantity, pi.inventory_id, pi.quantity_needed, i.stock_quantity 
+                   FROM cart c
+                   JOIN product_ingredients pi ON c.product_id = pi.product_id
+                   JOIN inventory i ON pi.inventory_id = i.inventory_id
+                   WHERE c.user_id = :user_id";
+                   
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':user_id', $data['user_id']);
+            $stmt->execute();
+            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Update inventory quantities
+            foreach ($ingredients as $ingredient) {
+                $consumed_quantity = $ingredient['quantity_needed'] * $ingredient['quantity'];
+                $new_stock = $ingredient['stock_quantity'] - $consumed_quantity;
+                
+                $updateSql = "UPDATE inventory 
+                             SET stock_quantity = :new_stock,
+                                 last_updated = NOW() 
+                             WHERE inventory_id = :inventory_id";
+                
+                $updateStmt = $conn->prepare($updateSql);
+                $updateStmt->bindParam(':new_stock', $new_stock);
+                $updateStmt->bindParam(':inventory_id', $ingredient['inventory_id']);
+                $updateStmt->execute();
+            }
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Order processed and inventory updated successfully"
+            ];
+            
+        } catch (Exception $e) {
+            $conn->rollback();
+            return [
+                "status" => false,
+                "message" => "Error processing checkout: " . $e->getMessage()
+            ];
+        }
+    }
+
+    private function logInventoryUpdate($productId, $ingredientId, $oldQuantity, $newQuantity) {
+        error_log(sprintf(
+            "Inventory Update - Product: %d, Ingredient: %d, Old Qty: %f, New Qty: %f",
+            $productId,
+            $ingredientId,
+            $oldQuantity,
+            $newQuantity
+        ));
+    }
 }
 ?>
