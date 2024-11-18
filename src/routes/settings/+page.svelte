@@ -1,28 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Header from '$lib/header.svelte';
-  import Alert from '$lib/components/Alert.svelte';
 
   let y = 0;
   let innerHeight = 0;
 
   // Define types for items and newItem
-  type Item = { product_id: number; name: string; image: string | File; price: string; category: string; size?: string; imageUrl?: string };
-  type NewItem = { name: string; image: File; price: string; category: string; size?: string };
+  type Item = { product_id: number; name: string; image: string | File; price: string; category: string; imageUrl?: string };
+  type NewItem = { name: string; image: File; price: string; category: string };
 
   let items: Item[] = [];
-  const categories = ['Pizza', 'Burger & Fries', 'Nachos', 'Drinks', 'Chocolate Series', 'Cheesecake Series']; // Add your categories here
-  const sizeOptions = {
-    'Drinks': ['160 oz', '220 oz'],
-    'Pizza': ['10"', '12"']
-  };
-  let newItem: NewItem = { name: '', image: new File([], ''), price: '', category: categories[0], size: '' };
+  const categories = ['Pizza', 'Burger & Fries', 'Nachos', 'Fruit Soda', 'Yakult Mix', 'Iced Coffee',
+   'Frappe Non-Coffee','Frappe Coffee Base', 'Classic Milk Tea', 'Chocolate Series', 'Cheesecake Series']; // Add your categories here
+  let newItem: NewItem = { name: '', image: new File([], ''), price: '', category: categories[0] };
   let editItem: Item; // Change the type declaration to allow null
   let isEditModalOpen = false;
   let searchQuery = '';
-  let showAlert = false;
-  let alertMessage = '';
-  let alertType: 'success' | 'warning' | 'error' = 'warning';
 
   onMount(async () => {
     await fetchItems();
@@ -38,10 +31,9 @@
   }
 
   async function addItem() {
+    console.log('New Item:', newItem);
     if (!newItem.image) {
-      alertMessage = "Please select an image.";
-      alertType = 'warning';
-      showAlert = true;
+      alert("Please select an image.");
       return;
     }
 
@@ -50,61 +42,28 @@
     formData.append('image', newItem.image);
     formData.append('price', newItem.price);
     formData.append('category', newItem.category);
-    formData.append('size', newItem.size || 'base-size');
 
     const response = await fetch('http://localhost/POS/api/routes.php?request=add-menu-item', {
       method: 'POST',
       body: formData,
     });
-
     const result = await response.json();
-    
     if (result.status) {
-      alertMessage = "Menu item added successfully";
-      alertType = 'success';
-      await fetchItems();
-      // Reset form
-      newItem = { 
-        name: '', 
-        image: new File([], ''), 
-        price: '', 
-        category: categories[0],
-        size: '' 
-      };
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
+      await fetchItems(); // Refresh the items list
+      newItem = { name: '', image: new File([], ''), price: '', category: categories[0] }; // Reset form
     } else {
-      alertMessage = result.message;
-      alertType = 'error';
+      alert(result.message);
     }
-    
-    showAlert = true;
-    // Auto-hide alert after 3 seconds
-    setTimeout(() => {
-      showAlert = false;
-    }, 3000);
   }
 
   async function updateItem() {
     if (!editItem) return;
-
-    // Validate size for Drinks and Pizza
-    if (['Drinks', 'Pizza'].includes(editItem.category) && (!editItem.size || editItem.size === 'base-size')) {
-      alertMessage = `Please select a size for ${editItem.category}`;
-      alertType = 'warning';
-      showAlert = true;
-      return;
-    }
 
     const formData = new FormData();
     formData.append('product_id', editItem.product_id.toString());
     formData.append('name', editItem.name);
     formData.append('price', editItem.price);
     formData.append('category', editItem.category);
-    
-    // Handle size based on category
-    const size = ['Drinks', 'Pizza'].includes(editItem.category) ? editItem.size : 'base-size';
-    formData.append('size', size);
     
     // Handle image upload if a new image was selected
     if (editItem.image instanceof File) {
@@ -115,24 +74,13 @@
       method: 'POST',
       body: formData,
     });
-    
     const result = await response.json();
-    
     if (result.status) {
-      alertMessage = "Menu item updated successfully";
-      alertType = 'success';
       await fetchItems();
       isEditModalOpen = false;
     } else {
-      alertMessage = result.message;
-      alertType = 'error';
+      alert(result.message);
     }
-    
-    showAlert = true;
-    // Auto-hide alert after 3 seconds
-    setTimeout(() => {
-      showAlert = false;
-    }, 3000);
   }
 
   async function deleteItem(itemId: number) {
@@ -168,25 +116,7 @@
       item.category.toLowerCase().includes(lowerQuery)
     );
   }
-
-  // Add this function to handle category changes
-  function handleCategoryChange(newCategory: string) {
-    editItem.category = newCategory;
-    // Reset size if changing to a non-size category
-    if (!['Drinks', 'Pizza'].includes(newCategory)) {
-      editItem.size = 'base-size';
-    } else if (!editItem.size || editItem.size === 'base-size') {
-      // If changing to Drinks/Pizza and size is not set or base-size, set it to empty to force selection
-      editItem.size = '';
-    }
-  }
 </script>
-
-<Alert 
-  message={alertMessage}
-  type={alertType}
-  bind:show={showAlert}
-/>
 
 <Header {y} {innerHeight} />
 
@@ -233,18 +163,6 @@
               <option value={category}>{category}</option>
             {/each}
           </select>
-          {#if ['Drinks', 'Pizza'].includes(newItem.category)}
-            <select 
-              bind:value={newItem.size} 
-              class="p-2 border rounded-md w-full"
-              required
-            >
-              <option value="" disabled selected>Select size</option>
-              {#each sizeOptions[newItem.category] as size}
-                <option value={size}>{size}</option>
-              {/each}
-            </select>
-          {/if}
         </div>
         <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md w-full">Add Item</button>
       </form>
@@ -294,7 +212,6 @@
               <input type="text" bind:value={editItem.price} placeholder="Price" class="p-2 border rounded-md" required />
               <select 
                 bind:value={editItem.category} 
-                on:change={(e) => handleCategoryChange(e.target.value)}
                 class="p-2 border rounded-md"
                 required 
               >
@@ -302,18 +219,6 @@
                   <option value={category}>{category}</option>
                 {/each}
               </select>
-              {#if ['Drinks', 'Pizza'].includes(editItem.category)}
-                <select 
-                  bind:value={editItem.size} 
-                  class="p-2 border rounded-md"
-                  required
-                >
-                  <option value="" disabled>Select size</option>
-                  {#each sizeOptions[editItem.category] as size}
-                    <option value={size}>{size}</option>
-                  {/each}
-                </select>
-              {/if}
             </div>
             <div class="flex gap-2">
               <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md flex-1">Update</button>
@@ -337,9 +242,6 @@
             <h3 class="font-bold">{item.name}</h3>
             <p>₱{item.price}</p>
             <p class="text-gray-600">{item.category}</p>
-            {#if item.size && item.size !== 'base-size'}
-              <p class="text-sm text-gray-500">Size: {item.size}</p>
-            {/if}
             <div class="item-actions">
               <button on:click={() => startEdit(item)} class="edit-btn">Edit</button>
               <button on:click={() => deleteItem(item.product_id)} class="delete-btn">Delete</button>

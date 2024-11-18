@@ -36,98 +36,45 @@ class Update {
     public function updateMenuItem($data) {
         global $conn;
         
-        // Debug log
-        error_log('Update data received: ' . print_r($data, true));
-        
-        // First get the original product data
-        $getOriginalSql = "SELECT category, size FROM product WHERE product_id = :product_id";
-        $origStmt = $conn->prepare($getOriginalSql);
-        $origStmt->execute([':product_id' => $data['product_id']]);
-        $originalProduct = $origStmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Determine the new size
-        $newSize = 'base-size';
-        if (in_array($data['category'], ['Drinks', 'Pizza'])) {
-            // If new category is Drinks/Pizza, use the provided size
-            $newSize = $data['size'] ?? 'base-size';
+        if (!isset($data['product_id'], $data['name'], $data['price'], $data['category'])) {
+            return ["status" => false, "message" => "Missing required fields"];
         }
+
+        $id = $data['product_id'];
+        $name = $data['name'];
+        $price = $data['price'];
+        $category = $data['category'];
         
-        // First check if another product exists with the same specifications
-        $checkSql = "SELECT * FROM product 
-                     WHERE name = :name 
-                     AND category = :category 
-                     AND price = :price 
-                     AND product_id != :product_id";
-        
-        $checkStmt = $conn->prepare($checkSql);
-        try {
-            $checkStmt->execute([
-                ':name' => $data['name'],
-                ':category' => $data['category'],
-                ':price' => $data['price'],
-                ':product_id' => $data['product_id']
-            ]);
-            
-            if ($checkStmt->fetch()) {
-                return [
-                    "status" => false,
-                    "message" => "Another product already exists with the same specifications"
-                ];
+        // Handle image upload if a new image was provided
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = '../uploads/';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
             }
-        } catch (PDOException $e) {
-            error_log('Error checking product existence: ' . $e->getMessage());
-            return [
-                "status" => false,
-                "message" => "Error checking product existence: " . $e->getMessage()
-            ];
+            
+            $fileName = time() . '_' . $_FILES['image']['name'];
+            move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $fileName);
+            
+            // Update with new image
+            $sql = "UPDATE product SET name = :name, image = :image, price = :price, category = :category WHERE product_id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':image', $fileName);
+        } else {
+            // Update without changing image
+            $sql = "UPDATE product SET name = :name, price = :price, category = :category WHERE product_id = :id";
+            $stmt = $conn->prepare($sql);
         }
         
-        // If we get here, proceed with the update
-        $sql = "UPDATE product SET 
-                name = :name,
-                price = :price,
-                category = :category,
-                size = :size";
-        
-        // Add image to update if provided
-        if (isset($data['image']) && !empty($data['image'])) {
-            $sql .= ", image = :image";
-        }
-        
-        $sql .= " WHERE product_id = :product_id";
-        
-        $stmt = $conn->prepare($sql);
-        
-        $params = [
-            ':name' => $data['name'],
-            ':price' => $data['price'],
-            ':category' => $data['category'],
-            ':size' => $newSize,
-            ':product_id' => $data['product_id']
-        ];
-        
-        if (isset($data['image']) && !empty($data['image'])) {
-            $params[':image'] = $data['image'];
-        }
-        
+        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':name', $name);
+        $stmt->bindParam(':price', $price);
+        $stmt->bindParam(':category', $category);
+
         try {
-            $stmt->execute($params);
-            return [
-                "status" => true,
-                "message" => "Menu item updated successfully",
-                "debug" => [
-                    "original_category" => $originalProduct['category'],
-                    "original_size" => $originalProduct['size'],
-                    "new_category" => $data['category'],
-                    "new_size" => $newSize
-                ]
-            ];
+            $stmt->execute();
+            return ["status" => true, "message" => "Menu item updated successfully"];
         } catch (PDOException $e) {
-            error_log('Database error: ' . $e->getMessage());
-            return [
-                "status" => false,
-                "message" => "Failed to update menu item: " . $e->getMessage()
-            ];
+            return ["status" => false, "message" => "Failed to update menu item: " . $e->getMessage()];
         }
     }
 }

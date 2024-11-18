@@ -9,19 +9,3 @@ body, html {
     overflow-x: hidden;
     
 }
-
-.fixed {
-  position: fixed;
-}
-
-.top-4 {
-  top: 1rem;
-}
-
-.right-4 {
-  right: 1rem;
-}
-
-.z-50 {
-  z-index: 50;
-}

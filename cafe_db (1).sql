@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 17, 2024 at 04:34 PM
+-- Generation Time: Nov 17, 2024 at 06:05 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.1.25
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -38,40 +38,51 @@ CREATE TABLE `cart` (
 --
 
 INSERT INTO `cart` (`user_id`, `product_id`, `quantity`) VALUES
+(1, 13, 1),
+(1, 13, 1),
+(1, 13, 1),
 (1, 12, 1),
 (1, 12, 1),
 (1, 12, 1),
+(1, 13, 1),
+(1, 12, 1),
+(1, 12, 1),
+(1, 13, 1),
 (1, 12, 1),
 (1, 12, 1),
 (1, 12, 1),
+(1, 13, 1),
+(1, 13, 1),
 (1, 12, 1),
 (1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
+(1, 13, 1),
+(1, 13, 1),
+(2, 12, 1),
+(2, 13, 1),
 (2, 12, 1),
 (2, 12, 1),
+(2, 13, 1),
 (2, 12, 1),
 (2, 12, 1),
+(2, 13, 1),
+(2, 13, 1),
+(2, 13, 1),
+(2, 13, 1),
 (2, 12, 1),
 (2, 12, 1),
-(2, 12, 1),
+(1, 13, 1),
+(1, 13, 1),
 (1, 12, 1),
 (1, 12, 1),
 (1, 12, 1),
 (1, 12, 1),
 (1, 12, 1),
 (1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1);
+(2, 13, 1),
+(2, 13, 1),
+(1, 13, 1),
+(1, 13, 1),
+(1, 13, 1);
 
 -- --------------------------------------------------------
 
@@ -103,12 +114,7 @@ INSERT INTO `customer` (`customer_id`, `Name`, `total_amount`) VALUES
 (12, 'HIZOLA, JOHN CARLO A.', '120'),
 (13, 'HIZOLA, JOHN CARLO A.', '20'),
 (14, 'HIZOLA, JOHN CARLO A.', '120'),
-(15, 'HIZOLA, JOHN CARLO A.', '120'),
-(16, 'Lauraa Kate Roa', '20'),
-(17, 'Lauraa Kate Roa', '20'),
-(18, 'Lauraa Kate Roa', '20'),
-(19, 'Lauraa Kate Roa', '20'),
-(20, 'John Carlo Arceo Hizola', '50');
+(15, 'HIZOLA, JOHN CARLO A.', '120');
 
 -- --------------------------------------------------------
 
@@ -121,17 +127,18 @@ CREATE TABLE `inventory` (
   `stock_quantity` int(11) NOT NULL,
   `last_updated` datetime(6) NOT NULL,
   `user_id` int(11) NOT NULL,
-  `item_name` varchar(255) NOT NULL,
-  `unit_of_measure` varchar(20) NOT NULL
+  `item_name` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `inventory`
 --
 
-INSERT INTO `inventory` (`inventory_id`, `stock_quantity`, `last_updated`, `user_id`, `item_name`, `unit_of_measure`) VALUES
-(18, 87, '2024-11-17 18:32:08.000000', 0, 'Oil', 'liters'),
-(19, 11, '2024-11-17 18:32:08.000000', 0, 'Potato', 'pieces');
+INSERT INTO `inventory` (`inventory_id`, `stock_quantity`, `last_updated`, `user_id`, `item_name`) VALUES
+(14, 5, '2024-11-10 21:28:37.000000', 0, 'bean'),
+(15, 5, '2024-11-10 21:40:51.000000', 0, 'ice'),
+(16, 5, '2024-11-11 14:34:13.000000', 0, 'flour'),
+(17, 7, '2024-11-11 16:02:42.000000', 0, 'milk');
 
 -- --------------------------------------------------------
 
@@ -163,10 +170,7 @@ INSERT INTO `order` (`order_id`, `customer_id`, `order_date`, `total_amount`, `u
 (8, 12, '2024-11-17 12:30:10.000000', 10, 2, 'paid'),
 (9, 13, '2024-11-17 12:49:54.000000', 10, 1, 'paid'),
 (10, 14, '2024-11-17 12:52:50.000000', 10, 1, 'paid'),
-(11, 15, '2024-11-17 13:00:31.000000', 5, 1, 'paid'),
-(14, 18, '2024-11-17 18:14:52.000000', 11, 1, 'paid'),
-(15, 19, '2024-11-17 18:31:37.000000', 11, 1, 'paid'),
-(16, 20, '2024-11-17 18:32:08.000000', 11, 1, 'paid');
+(11, 15, '2024-11-17 13:00:31.000000', 5, 1, 'paid');
 
 -- --------------------------------------------------------
 
@@ -201,10 +205,7 @@ INSERT INTO `order_item` (`order_item_id`, `order_id`, `product_id`, `quantity`,
 (12, 8, 13, 2, 5),
 (13, 9, 13, 2, 5),
 (14, 10, 13, 2, 5),
-(15, 11, 13, 1, 5),
-(18, 14, 12, 1, 11),
-(19, 15, 12, 1, 11),
-(20, 16, 12, 1, 11);
+(15, 11, 13, 1, 5);
 
 -- --------------------------------------------------------
 
@@ -231,61 +232,6 @@ INSERT INTO `product` (`product_id`, `name`, `price`, `category`, `image`) VALUE
 -- --------------------------------------------------------
 
 --
--- Table structure for table `product_ingredients`
---
-
-CREATE TABLE `product_ingredients` (
-  `id` int(11) NOT NULL,
-  `product_id` int(11) NOT NULL,
-  `inventory_id` int(11) NOT NULL,
-  `quantity_needed` decimal(10,2) NOT NULL,
-  `unit_of_measure` varchar(20) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `product_ingredients`
---
-
-INSERT INTO `product_ingredients` (`id`, `product_id`, `inventory_id`, `quantity_needed`, `unit_of_measure`) VALUES
-(3, 12, 18, 4.00, 'liters'),
-(4, 12, 19, 3.00, 'pieces');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `product_sizes`
---
-
-CREATE TABLE `product_sizes` (
-  `size_id` int(11) NOT NULL,
-  `product_id` int(11) NOT NULL,
-  `size_name` varchar(50) NOT NULL,
-  `price` decimal(10,2) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `product_sizes`
---
-
-INSERT INTO `product_sizes` (`size_id`, `product_id`, `size_name`, `price`) VALUES
-(6, 12, 'Large', 20.00);
-
--- --------------------------------------------------------
-
---
--- Table structure for table `product_size_ingredients`
---
-
-CREATE TABLE `product_size_ingredients` (
-  `size_id` int(11) NOT NULL,
-  `inventory_id` int(50) NOT NULL,
-  `quantity_needed` decimal(10,2) NOT NULL,
-  `unit_of_measure` varchar(50) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `receipt`
 --
 
@@ -302,13 +248,7 @@ CREATE TABLE `receipt` (
 
 INSERT INTO `receipt` (`receipt_id`, `order_id`, `generated_at`, `total_amount`) VALUES
 (1, 10, '2024-11-17 12:52:50.000000', 10),
-(2, 11, '2024-11-17 13:00:31.000000', 5),
-(3, 14, '2024-11-17 18:14:52.000000', 11),
-(4, 14, '2024-11-17 18:14:52.000000', 11),
-(5, 15, '2024-11-17 18:31:37.000000', 11),
-(6, 15, '2024-11-17 18:31:37.000000', 11),
-(7, 16, '2024-11-17 18:32:08.000000', 11),
-(8, 16, '2024-11-17 18:32:08.000000', 11);
+(2, 11, '2024-11-17 13:00:31.000000', 5);
 
 -- --------------------------------------------------------
 
@@ -332,22 +272,7 @@ INSERT INTO `sales` (`sale_id`, `order_id`, `total_sales`, `sales_date`, `user_i
 (1, 8, 10, '2024-11-17 12:30:10.000000', 2),
 (2, 9, 10, '2024-11-17 12:49:54.000000', 1),
 (3, 10, 10, '2024-11-17 12:52:50.000000', 1),
-(4, 11, 5, '2024-11-17 13:00:31.000000', 1),
-(5, 14, 11, '2024-11-17 18:14:52.000000', 1),
-(6, 15, 11, '2024-11-17 18:31:37.000000', 1),
-(7, 16, 11, '2024-11-17 18:32:08.000000', 1);
-
--- --------------------------------------------------------
-
---
--- Table structure for table `size_ingredients`
---
-
-CREATE TABLE `size_ingredients` (
-  `size_id` int(11) NOT NULL,
-  `inventory_id` int(11) NOT NULL,
-  `quantity` decimal(10,2) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+(4, 11, 5, '2024-11-17 13:00:31.000000', 1);
 
 -- --------------------------------------------------------
 
@@ -417,28 +342,6 @@ ALTER TABLE `product`
   ADD PRIMARY KEY (`product_id`);
 
 --
--- Indexes for table `product_ingredients`
---
-ALTER TABLE `product_ingredients`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `inventory_id` (`inventory_id`),
-  ADD KEY `product_id` (`product_id`);
-
---
--- Indexes for table `product_sizes`
---
-ALTER TABLE `product_sizes`
-  ADD PRIMARY KEY (`size_id`),
-  ADD KEY `product_id` (`product_id`);
-
---
--- Indexes for table `product_size_ingredients`
---
-ALTER TABLE `product_size_ingredients`
-  ADD KEY `size_id` (`size_id`),
-  ADD KEY `inventory_id` (`inventory_id`);
-
---
 -- Indexes for table `receipt`
 --
 ALTER TABLE `receipt`
@@ -454,13 +357,6 @@ ALTER TABLE `sales`
   ADD KEY `sales_ibfk_1` (`user_id`);
 
 --
--- Indexes for table `size_ingredients`
---
-ALTER TABLE `size_ingredients`
-  ADD PRIMARY KEY (`size_id`),
-  ADD KEY `inventory_id` (`inventory_id`);
-
---
 -- Indexes for table `user_acc`
 --
 ALTER TABLE `user_acc`
@@ -474,55 +370,43 @@ ALTER TABLE `user_acc`
 -- AUTO_INCREMENT for table `customer`
 --
 ALTER TABLE `customer`
-  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `inventory`
 --
 ALTER TABLE `inventory`
-  MODIFY `inventory_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `inventory_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `order`
 --
 ALTER TABLE `order`
-  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `order_item`
 --
 ALTER TABLE `order_item`
-  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `product`
 --
 ALTER TABLE `product`
-  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
-
---
--- AUTO_INCREMENT for table `product_ingredients`
---
-ALTER TABLE `product_ingredients`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
-
---
--- AUTO_INCREMENT for table `product_sizes`
---
-ALTER TABLE `product_sizes`
-  MODIFY `size_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `receipt`
 --
 ALTER TABLE `receipt`
-  MODIFY `receipt_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `receipt_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `sales`
 --
 ALTER TABLE `sales`
-  MODIFY `sale_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `sale_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `user_acc`
@@ -555,26 +439,6 @@ ALTER TABLE `order_item`
   ADD CONSTRAINT `order_item_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`);
 
 --
--- Constraints for table `product_ingredients`
---
-ALTER TABLE `product_ingredients`
-  ADD CONSTRAINT `product_ingredients_ibfk_1` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`inventory_id`),
-  ADD CONSTRAINT `product_ingredients_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`);
-
---
--- Constraints for table `product_sizes`
---
-ALTER TABLE `product_sizes`
-  ADD CONSTRAINT `product_sizes_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`);
-
---
--- Constraints for table `product_size_ingredients`
---
-ALTER TABLE `product_size_ingredients`
-  ADD CONSTRAINT `product_size_ingredients_ibfk_1` FOREIGN KEY (`size_id`) REFERENCES `product_sizes` (`size_id`),
-  ADD CONSTRAINT `product_size_ingredients_ibfk_2` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`inventory_id`);
-
---
 -- Constraints for table `receipt`
 --
 ALTER TABLE `receipt`
@@ -586,13 +450,6 @@ ALTER TABLE `receipt`
 ALTER TABLE `sales`
   ADD CONSTRAINT `sales_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user_acc` (`User_id`),
   ADD CONSTRAINT `sales_ibfk_2` FOREIGN KEY (`order_id`) REFERENCES `order` (`order_id`);
-
---
--- Constraints for table `size_ingredients`
---
-ALTER TABLE `size_ingredients`
-  ADD CONSTRAINT `size_ingredients_ibfk_1` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`inventory_id`),
-  ADD CONSTRAINT `size_ingredients_ibfk_2` FOREIGN KEY (`size_id`) REFERENCES `product_sizes` (`size_id`);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
