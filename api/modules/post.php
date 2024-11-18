@@ -106,29 +106,95 @@ class Post {
     public function addMenuItem($data) {
         global $conn;
         
-        if (!isset($data['name'], $data['image'], $data['price'], $data['category'])) {
-            error_log('Missing fields. Available data: ' . print_r($data, true));
-            return ["status" => false, "message" => "Missing required fields"];
+        // Debug log
+        error_log('Received data in addMenuItem: ' . print_r($data, true));
+        
+        // Determine the size
+        $size = 'base-size';
+        if (in_array($data['category'], ['Drinks', 'Pizza'])) {
+            $size = isset($data['size']) && !empty($data['size']) ? $data['size'] : 'base-size';
         }
-
-        $name = $data['name'];
-        $image = $data['image'];
-        $price = $data['price'];
-        $category = $data['category'];
-
-        $sql = "INSERT INTO product (name, image, price, category) VALUES (:name, :image, :price, :category)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':image', $image);
-        $stmt->bindParam(':price', $price);
-        $stmt->bindParam(':category', $category);
-
+        
+        // Check if product already exists
+        $checkSql = "SELECT * FROM product 
+                     WHERE name = :name 
+                     AND category = :category 
+                     AND price = :price";
+        
+        // Add size check for Drinks and Pizza
+        if (in_array($data['category'], ['Drinks', 'Pizza'])) {
+            $checkSql .= " AND size = :size";
+        }
+        
+        $checkStmt = $conn->prepare($checkSql);
+        $checkParams = [
+            ':name' => $data['name'],
+            ':category' => $data['category'],
+            ':price' => $data['price']
+        ];
+        
+        // Add size parameter for Drinks and Pizza
+        if (in_array($data['category'], ['Drinks', 'Pizza'])) {
+            $checkParams[':size'] = $size;
+        }
+        
         try {
-            $stmt->execute();
-            $product_id = $conn->lastInsertId();
-            return ["status" => true, "message" => "Menu item added successfully", "product_id" => $product_id];
+            $checkStmt->execute($checkParams);
+            
+            if ($checkStmt->fetch()) {
+                return [
+                    "status" => false,
+                    "message" => "Product already exists with the same specifications"
+                ];
+            }
         } catch (PDOException $e) {
-            return ["status" => false, "message" => "Failed to add menu item: " . $e->getMessage()];
+            error_log('Error checking product existence: ' . $e->getMessage());
+            return [
+                "status" => false,
+                "message" => "Error checking product existence: " . $e->getMessage()
+            ];
+        }
+        
+        // If we get here, the product doesn't exist, so proceed with insertion
+        $sql = "INSERT INTO product (name, image, price, category, size) 
+                VALUES (:name, :image, :price, :category, :size)";
+        $stmt = $conn->prepare($sql);
+        
+        try {
+            $result = $stmt->execute([
+                ':name' => $data['name'],
+                ':image' => $data['image'],
+                ':price' => $data['price'],
+                ':category' => $data['category'],
+                ':size' => $size
+            ]);
+            
+            if (!$result) {
+                error_log('SQL Error: ' . print_r($stmt->errorInfo(), true));
+                return [
+                    "status" => false,
+                    "message" => "Failed to add menu item"
+                ];
+            }
+            
+            return [
+                "status" => true,
+                "message" => "Menu item added successfully",
+                "debug" => [
+                    "size" => $size,
+                    "category" => $data['category']
+                ]
+            ];
+        } catch (PDOException $e) {
+            error_log('Database error: ' . $e->getMessage());
+            return [
+                "status" => false,
+                "message" => "Failed to add menu item: " . $e->getMessage(),
+                "debug" => [
+                    "size" => $size,
+                    "category" => $data['category']
+                ]
+            ];
         }
     }
 
