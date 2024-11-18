@@ -5,6 +5,7 @@
   import Cart from '../cart/+page.svelte';
   import { onMount } from 'svelte';
   import { userStore } from '$lib/auth.js';
+  import SizeSelectionModal from '$lib/sizeSelectionModal.svelte';
 
   type Product = {
     product_id: number;
@@ -13,6 +14,11 @@
     price: number;
     category: string;
     is_available: boolean;
+    sizes?: Array<{
+      size_id: number;
+      size_name: string;
+      price: string;
+    }>;
   };
   type CartItem = {
     product_id: number;
@@ -22,6 +28,7 @@
     price: number;
     category: string;
     quantity: number;
+    size_name?: string;
   };
 
   let y = 0;
@@ -32,6 +39,8 @@
   let selectedCategory = 'All';
   let searchQuery = '';
   let userId: number;
+  let showSizeModal = false;
+  let selectedProduct: Product | null;
 
   userStore.subscribe((user) => {
     if (!user.userId) {
@@ -43,6 +52,7 @@
 
   onMount(async () => {
     await fetchItems();
+    await fetchCartItems();
   });
 
   async function fetchItems() {
@@ -55,57 +65,50 @@
     }));
   }
 
-  async function addToCart(product: Product) {
-    if (!product.is_available) {
-        alert('This item is currently unavailable');
-        return;
-    }
-
-    const existingItem = cartItems.find(item => item.product_id === product.product_id);
-    
-    try {
-        const data = {
-            product_id: product.product_id,
-            quantity: 1,
-            user_id: userId
-        };
-
-        const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-        
-        if (result.status) {
-            if (existingItem) {
-                cartItems = cartItems.map(item => 
-                    item.product_id === product.product_id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            } else {
-                const newItem = {
-                    ...product,
-                    id: product.product_id,
-                    quantity: 1
-                };
-                cartItems = [...cartItems, newItem];
-            }
-        } else {
-            alert(result.message);
-        }
-    } catch (error) {
-        console.error('Error adding item to cart:', error);
-        alert('Failed to add item to cart');
+  async function fetchCartItems() {
+    const response = await fetch(`http://localhost/POS/api/routes.php?request=get-cart-items&user_id=${userId}`);
+    const result = await response.json();
+    if (result.status) {
+      cartItems = result.data;
+    } else {
+      console.error('Failed to fetch cart items:', result.message);
+      cartItems = [];
     }
   }
 
-  function removeFromCart(productId: number) {
-    cartItems = cartItems.filter(item => item.product_id !== productId);
+  async function addToCart(product: Product) {
+    if (!product.is_available) {
+      alert('This item is currently unavailable');
+      return;
+    }
+
+    selectedProduct = product;
+    showSizeModal = true;
+  }
+
+  async function removeFromCart(productId: number) {
+    try {
+      const response = await fetch('http://localhost/POS/api/routes.php?request=remove-from-cart', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          product_id: productId
+        })
+      });
+
+      const result = await response.json();
+      if (result.status) {
+        cartItems = cartItems.filter(item => item.id !== productId);
+        await fetchCartItems(); // Refresh cart from server
+      } else {
+        console.error('Failed to remove item from cart:', result.message);
+      }
+    } catch (error) {
+      console.error('Error removing item from cart:', error);
+    }
   }
 
   function updateQuantity(productId: number, newQuantity: number) {
@@ -130,6 +133,37 @@
 
   $: categories = ['All', ...new Set(products.map(p => p.category))];
   $: total = getTotal();
+
+  async function handleSizeSelect(sizeId: number, price: string) {
+    if (!selectedProduct) return;
+
+    try {
+      const data = {
+        product_id: selectedProduct.product_id,
+        size_id: sizeId,
+        quantity: 1,
+        user_id: userId,
+        price: price
+      };
+
+      const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+      if (result.status) {
+        await fetchCartItems();
+        showSizeModal = false;
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('Failed to add item to cart');
+    }
+  }
 </script>
 
 <Header {y} {innerHeight} />
@@ -176,7 +210,8 @@
                   image: product.image,
                   price: product.price.toString(),
                   category: product.category,
-                  is_available: product.is_available
+                  is_available: product.is_available,
+                  sizes: product.sizes || []
                 }} />
               </button>
             {/each}
@@ -191,6 +226,10 @@
       onUpdateQuantity={updateQuantity}
       onRemoveFromCart={removeFromCart}
       {total}
+      on:cartCleared={() => {
+        cartItems = [];
+        fetchCartItems();
+      }}
     />
   </div>
 </div>
@@ -276,3 +315,17 @@
     box-shadow: 0 0 0 2px rgba(71, 203, 80, 0.2);
   }
 </style>
+
+{#if showSizeModal && selectedProduct}
+  <SizeSelectionModal
+    show={showSizeModal}
+    product={{
+      ...selectedProduct,
+      price: selectedProduct.price.toString()
+    }}
+    onSelect={handleSizeSelect}
+    onClose={() => {
+      showSizeModal = false;
+    }}
+  />
+{/if}

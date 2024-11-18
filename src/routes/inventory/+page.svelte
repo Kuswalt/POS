@@ -28,13 +28,23 @@
     );
 
     async function fetchItems() {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=get-items');
-        const result = await response.json();
-        if (result.status) {
-            items = result.data.map((item: any) => ({
-                ...item,
-                last_updated: new Date(item.last_updated).toLocaleString()
-            }));
+        try {
+            const response = await fetch('http://localhost/POS/api/routes.php?request=get-items');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            if (result.status) {
+                items = result.data.map((item: any) => ({
+                    ...item,
+                    last_updated: new Date(item.last_updated).toLocaleString()
+                }));
+            } else {
+                console.error('Failed to fetch items:', result.message);
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+            items = []; // Set empty array on error
         }
     }
 
@@ -72,21 +82,31 @@
     }
 
     async function updateItemStock(inventoryId: number) {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=update-item-stock', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                inventory_id: inventoryId,
-                item_name: itemName,
-                stock_quantity: stockQuantity,
-            }),
-        });
-        const result = await response.json();
-        if (result.status) {
-            editingItem = null;
-            await fetchItems();
+        try {
+            const response = await fetch('http://localhost/POS/api/routes.php?request=update-item-stock', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    inventory_id: inventoryId,
+                    item_name: itemName,
+                    stock_quantity: stockQuantity,
+                    unit_of_measure: unitOfMeasure,
+                }),
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            if (result.status) {
+                closeEditModal();
+                await fetchItems();
+            } else {
+                console.error('Failed to update item:', result.message);
+            }
+        } catch (error) {
+            console.error('Error updating item:', error);
         }
     }
 

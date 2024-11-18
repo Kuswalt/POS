@@ -222,13 +222,18 @@ class Post {
             }
             
             // Create receipt (existing code)
-            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount, printable_copy) 
-                    VALUES (:order_id, NOW(), :total_amount, :printable_copy)";
+            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount) 
+                    VALUES (:order_id, NOW(), :total_amount)";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':order_id', $order_id);
             $stmt->bindParam(':total_amount', $data['total_amount']);
-            $stmt->bindParam(':printable_copy', $order_id);
             $stmt->execute();
+            
+            // Delete cart items for this user
+            $deleteCartSql = "DELETE FROM cart WHERE user_id = :user_id";
+            $deleteCartStmt = $conn->prepare($deleteCartSql);
+            $deleteCartStmt->bindParam(':user_id', $data['user_id']);
+            $deleteCartStmt->execute();
             
             $conn->commit();
             return ["status" => true, "message" => "Order created successfully", "order_id" => $order_id];
@@ -356,6 +361,191 @@ class Post {
                 "status" => false,
                 "message" => "Database error: " . $e->getMessage()
             ];
+        }
+    }
+
+    public function addProductIngredients($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Delete existing ingredients for this product
+            $sql = "DELETE FROM product_ingredients WHERE product_id = :product_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $data['product_id']);
+            $stmt->execute();
+            
+            // Add new ingredients
+            $sql = "INSERT INTO product_ingredients (product_id, inventory_id, quantity_needed, unit_of_measure) 
+                    VALUES (:product_id, :inventory_id, :quantity_needed, :unit_of_measure)";
+            $stmt = $conn->prepare($sql);
+            
+            foreach ($data['ingredients'] as $ingredient) {
+                $stmt->bindParam(':product_id', $data['product_id']);
+                $stmt->bindParam(':inventory_id', $ingredient['inventory_id']);
+                $stmt->bindParam(':quantity_needed', $ingredient['quantity_needed']);
+                $stmt->bindParam(':unit_of_measure', $ingredient['unit_of_measure']);
+                $stmt->execute();
+            }
+            
+            $conn->commit();
+            return ["status" => true, "message" => "Product ingredients updated successfully"];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return ["status" => false, "message" => "Failed to update product ingredients: " . $e->getMessage()];
+        }
+    }
+
+    public function updateProductIngredients() {
+        global $conn;
+        
+        // Get JSON data from request
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        if (!isset($data['product_id']) || !isset($data['ingredients'])) {
+            return ["status" => false, "message" => "Missing required data"];
+        }
+        
+        try {
+            $conn->beginTransaction();
+            
+            // First, delete existing ingredients for this product
+            $deleteSql = "DELETE FROM product_ingredients WHERE product_id = :product_id";
+            $deleteStmt = $conn->prepare($deleteSql);
+            $deleteStmt->bindParam(':product_id', $data['product_id']);
+            $deleteStmt->execute();
+            
+            // Then insert new ingredients
+            $insertSql = "INSERT INTO product_ingredients (product_id, inventory_id, quantity_needed, unit_of_measure) 
+                         VALUES (:product_id, :inventory_id, :quantity_needed, :unit_of_measure)";
+            $insertStmt = $conn->prepare($insertSql);
+            
+            foreach ($data['ingredients'] as $ingredient) {
+                $insertStmt->bindParam(':product_id', $data['product_id']);
+                $insertStmt->bindParam(':inventory_id', $ingredient['inventory_id']);
+                $insertStmt->bindParam(':quantity_needed', $ingredient['quantity_needed']);
+                $insertStmt->bindParam(':unit_of_measure', $ingredient['unit_of_measure']);
+                $insertStmt->execute();
+            }
+            
+            $conn->commit();
+            return ["status" => true, "message" => "Ingredients updated successfully"];
+            
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return ["status" => false, "message" => "Failed to update ingredients: " . $e->getMessage()];
+        }
+    }
+
+    public function addProductSizes($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Delete existing sizes
+            $sql = "DELETE FROM product_sizes WHERE product_id = :product_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $data['product_id']);
+            $stmt->execute();
+            
+            // Add new sizes
+            $sql = "INSERT INTO product_sizes (product_id, size_name, price) 
+                    VALUES (:product_id, :size_name, :price)";
+            $stmt = $conn->prepare($sql);
+            
+            foreach ($data['sizes'] as $size) {
+                $stmt->bindParam(':product_id', $data['product_id']);
+                $stmt->bindParam(':size_name', $size['size_name']);
+                $stmt->bindParam(':price', $size['price']);
+                $stmt->execute();
+                
+                $size_id = $conn->lastInsertId();
+                
+                // Add ingredients for this size
+                if (!empty($size['ingredients'])) {
+                    $ingredientSql = "INSERT INTO product_size_ingredients 
+                                    (size_id, inventory_id, quantity_needed, unit_of_measure) 
+                                    VALUES (:size_id, :inventory_id, :quantity_needed, :unit_of_measure)";
+                    $ingredientStmt = $conn->prepare($ingredientSql);
+                    
+                    foreach ($size['ingredients'] as $ingredient) {
+                        $ingredientStmt->bindParam(':size_id', $size_id);
+                        $ingredientStmt->bindParam(':inventory_id', $ingredient['inventory_id']);
+                        $ingredientStmt->bindParam(':quantity_needed', $ingredient['quantity_needed']);
+                        $ingredientStmt->bindParam(':unit_of_measure', $ingredient['unit_of_measure']);
+                        $ingredientStmt->execute();
+                    }
+                }
+            }
+            
+            $conn->commit();
+            return ["status" => true, "message" => "Product sizes added successfully"];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return ["status" => false, "message" => "Failed to add product sizes: " . $e->getMessage()];
+        }
+    }
+
+    public function addSizeIngredients($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Delete existing ingredients for this size
+            $sql = "DELETE FROM product_size_ingredients WHERE size_id = :size_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':size_id', $data['size_id']);
+            $stmt->execute();
+            
+            if (!empty($data['ingredients'])) {
+                // Add new ingredients
+                $sql = "INSERT INTO product_size_ingredients (size_id, inventory_id, quantity_needed, unit_of_measure) 
+                        VALUES (:size_id, :inventory_id, :quantity_needed, :unit_of_measure)";
+                $stmt = $conn->prepare($sql);
+                
+                foreach ($data['ingredients'] as $ingredient) {
+                    $stmt->bindParam(':size_id', $data['size_id']);
+                    $stmt->bindParam(':inventory_id', $ingredient['inventory_id']);
+                    $stmt->bindParam(':quantity_needed', $ingredient['quantity_needed']);
+                    $stmt->bindParam(':unit_of_measure', $ingredient['unit_of_measure']);
+                    $stmt->execute();
+                }
+            }
+            
+            $conn->commit();
+            return ["status" => true, "message" => "Size ingredients updated successfully"];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return ["status" => false, "message" => "Failed to update size ingredients: " . $e->getMessage()];
+        }
+    }
+
+    public function deleteProductSize($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Delete size ingredients first
+            $sql = "DELETE FROM product_size_ingredients WHERE size_id = :size_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':size_id', $data['size_id']);
+            $stmt->execute();
+            
+            // Then delete the size
+            $sql = "DELETE FROM product_sizes WHERE size_id = :size_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':size_id', $data['size_id']);
+            $stmt->execute();
+            
+            $conn->commit();
+            return ["status" => true, "message" => "Size deleted successfully"];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return ["status" => false, "message" => "Failed to delete size: " . $e->getMessage()];
         }
     }
 }
