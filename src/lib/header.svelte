@@ -31,10 +31,19 @@
       </a>
     {/each}
     <!-- Connect with me button -->
-    <a href="/" on:click|preventDefault={logout} class="relative overflow-hidden px-5 py-2 group rounded-full bg-white text-green-500">
-      <div class="absolute top-0 right-full w-full h-full bg-green-400 opacity-20 group-hover:translate-x-full z-0 duration-200" />
-      <h4 class="relative z-9 font-afacad">Log out</h4>
-    </a>
+    <button 
+        on:click={async () => {
+            try {
+                await logout();
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }} 
+        class="relative overflow-hidden px-5 py-2 group rounded-full bg-white text-green-500 cursor-pointer"
+    >
+        <div class="absolute top-0 right-full w-full h-full bg-green-400 opacity-20 group-hover:translate-x-full z-0 duration-200" />
+        <h4 class="relative z-9 font-afacad">Log out</h4>
+    </button>
   </div>
   <!-- Dropdown button for mobile view -->
   <div class="sm:hidden relative">
@@ -48,9 +57,12 @@
             <p class="font-afacad">{tab.name}</p>
           </a>
         {/each}
-        <a href="/" on:click|preventDefault={logout} class="block px-4 py-2 text-white hover:text-green-300 duration-200 font-afacad">
+        <button 
+          on:click={logout} 
+          class="block w-full text-left px-4 py-2 text-white hover:text-green-300 duration-200 font-afacad cursor-pointer"
+        >
           Log out
-        </a>
+        </button>
       </div>
     {/if}
   </div>

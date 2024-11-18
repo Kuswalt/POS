@@ -7,11 +7,30 @@ header('Content-Type: application/json');
 class Get {
     public function getMenuItems() {
         global $conn;
-
-        $sql = "SELECT * FROM product";
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        try {
+            $sql = "SELECT * FROM product ORDER BY name";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($items as &$item) {
+                if (isset($item['image']) && is_resource($item['image'])) {
+                    $item['image'] = stream_get_contents($item['image']);
+                }
+            }
+            
+            return $items;
+            
+        } catch (PDOException $e) {
+            error_log("Database error in getMenuItems: " . $e->getMessage());
+            return [
+                "status" => false,
+                "message" => "Failed to fetch menu items",
+                "error" => $e->getMessage()
+            ];
+        }
     }
     public function getItems() {
         global $conn;
@@ -132,5 +151,31 @@ class Get {
                 "message" => "Failed to fetch sales data: " . $e->getMessage()
             ];
         }
+    }
+    public function checkIngredientAvailability($product_id, $quantity) {
+        global $conn;
+        
+        $sql = "SELECT i.item_name, i.stock_quantity, (pi.quantity_needed * :order_quantity) as needed_quantity 
+                FROM inventory i 
+                JOIN product_ingredients pi ON i.inventory_id = pi.inventory_id 
+                WHERE pi.product_id = :product_id 
+                HAVING stock_quantity < needed_quantity";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':product_id', $product_id);
+        $stmt->bindParam(':order_quantity', $quantity);
+        $stmt->execute();
+        
+        $insufficient = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (count($insufficient) > 0) {
+            return [
+                "status" => false,
+                "message" => "Insufficient ingredients",
+                "details" => $insufficient
+            ];
+        }
+        
+        return ["status" => true];
     }
 }

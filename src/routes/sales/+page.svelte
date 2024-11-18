@@ -1,7 +1,7 @@
 <script lang="ts">
 
   import Header from '$lib/header.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import * as XLSX from 'xlsx';
 
@@ -174,17 +174,46 @@
     }));
   }
 
+  // Add cleanup function for charts
+  onDestroy(() => {
+    if (salesPerPeriodChart) {
+      salesPerPeriodChart.destroy();
+      salesPerPeriodChart = null;
+    }
+    if (salesPerProductChart) {
+      salesPerProductChart.destroy();
+      salesPerProductChart = null;
+    }
+    if (salesPerDayChart) {
+      salesPerDayChart.destroy();
+      salesPerDayChart = null;
+    }
+    if (salesPerProductPerDayChart) {
+      salesPerProductPerDayChart.destroy();
+      salesPerProductPerDayChart = null;
+    }
+  });
+
+  // Update the initializeCharts function
   async function initializeCharts() {
-    if (browser) {
-      ApexCharts = (await import('apexcharts')).default;
+    if (browser && !ApexCharts) {  // Add check for existing ApexCharts
+      try {
+        ApexCharts = (await import('apexcharts')).default;
+        updateCharts();
+      } catch (error) {
+        console.error('Failed to load ApexCharts:', error);
+      }
+    } else if (browser) {
       updateCharts();
     }
   }
 
-  // Initialize/update charts
+  // Update the updateCharts function to include null checks
   function updateCharts() {
-    if (!browser || !ApexCharts) return;
-
+    if (!browser || !ApexCharts || !document.querySelector("#salesPerPeriodChart")) {
+      return;  // Exit if elements don't exist
+    }
+    
     const periodData = prepareSalesPerPeriodData(chartData);
     const productData = prepareSalesPerProductData({chartData}); // Pass the entire response
     const dailyData = prepareSalesPerDayData(salesData);

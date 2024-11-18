@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 15, 2024 at 03:52 AM
+-- Generation Time: Nov 18, 2024 at 06:14 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.1.25
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -33,21 +33,6 @@ CREATE TABLE `cart` (
   `quantity` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `cart`
---
-
-INSERT INTO `cart` (`user_id`, `product_id`, `quantity`) VALUES
-(1, 13, 1),
-(1, 13, 1),
-(1, 13, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 12, 1),
-(1, 13, 1),
-(1, 12, 1),
-(1, 12, 1);
-
 -- --------------------------------------------------------
 
 --
@@ -59,6 +44,15 @@ CREATE TABLE `customer` (
   `Name` varchar(255) NOT NULL,
   `total_amount` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `customer`
+--
+
+INSERT INTO `customer` (`customer_id`, `Name`, `total_amount`) VALUES
+(22, 'test1', '100'),
+(23, 'HIZOLA, JOHN CARLO A.', '1090'),
+(24, 'HIZOLA, JOHN CARLO A.', '2000');
 
 -- --------------------------------------------------------
 
@@ -82,7 +76,8 @@ INSERT INTO `inventory` (`inventory_id`, `stock_quantity`, `last_updated`, `user
 (14, 5, '2024-11-10 21:28:37.000000', 0, 'bean'),
 (15, 5, '2024-11-10 21:40:51.000000', 0, 'ice'),
 (16, 5, '2024-11-11 14:34:13.000000', 0, 'flour'),
-(17, 7, '2024-11-11 16:02:42.000000', 0, 'milk');
+(17, 7, '2024-11-11 16:02:42.000000', 0, 'milk'),
+(18, 6, '2024-11-17 15:15:49.000000', 0, 'flour');
 
 -- --------------------------------------------------------
 
@@ -99,6 +94,14 @@ CREATE TABLE `order` (
   `payment_status` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `order`
+--
+
+INSERT INTO `order` (`order_id`, `customer_id`, `order_date`, `total_amount`, `user_id`, `payment_status`) VALUES
+(18, 22, '2024-11-17 16:55:08.000000', 54, 1, 'paid'),
+(19, 23, '2024-11-18 10:18:03.000000', 184, 1, 'paid');
+
 -- --------------------------------------------------------
 
 --
@@ -113,6 +116,18 @@ CREATE TABLE `order_item` (
   `price` float NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `order_item`
+--
+
+INSERT INTO `order_item` (`order_item_id`, `order_id`, `product_id`, `quantity`, `price`) VALUES
+(25, 18, 12, 4, 11),
+(26, 18, 13, 2, 5),
+(27, 19, 13, 1, 5),
+(28, 19, 21, 1, 139),
+(29, 19, 20, 2, 20),
+(30, 19, 19, 1, 0);
+
 -- --------------------------------------------------------
 
 --
@@ -124,16 +139,20 @@ CREATE TABLE `product` (
   `name` varchar(255) NOT NULL,
   `price` float NOT NULL,
   `category` varchar(255) NOT NULL,
-  `image` blob NOT NULL
+  `image` blob NOT NULL,
+  `size` varchar(50) DEFAULT 'base-size'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `product`
 --
 
-INSERT INTO `product` (`product_id`, `name`, `price`, `category`, `image`) VALUES
-(12, 'Fries', 11, 'Burger & Fries', 0x313733313633373534335f6c6f676f2e706e67),
-(13, 'Coffee', 5, 'Iced Coffee', 0x313733313633383832345f6c6f676f2e706e67);
+INSERT INTO `product` (`product_id`, `name`, `price`, `category`, `image`, `size`) VALUES
+(12, 'Fries', 11, 'Burger & Fries', 0x313733313633373534335f6c6f676f2e706e67, 'base-size'),
+(13, 'Coffee', 5, 'Iced Coffee', 0x313733313633383832345f6c6f676f2e706e67, 'base-size'),
+(19, 'water', 0, 'Drinks', 0x313733313839353537395f6c6f676f2e706e67, '220 oz'),
+(20, 'water', 20, 'Drinks', 0x313733313839353638375f6c6f676f2e706e67, '220 oz'),
+(21, 'test1', 130, 'Pizza', 0x313733313839363230395f6c6f676f2e706e67, '10\"');
 
 -- --------------------------------------------------------
 
@@ -145,9 +164,16 @@ CREATE TABLE `receipt` (
   `receipt_id` int(11) NOT NULL,
   `order_id` int(11) NOT NULL,
   `generated_at` datetime(6) NOT NULL,
-  `total_amount` float NOT NULL,
-  `printable_copy` varchar(255) NOT NULL
+  `total_amount` float NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `receipt`
+--
+
+INSERT INTO `receipt` (`receipt_id`, `order_id`, `generated_at`, `total_amount`) VALUES
+(9, 18, '2024-11-17 16:55:08.000000', 54),
+(10, 19, '2024-11-18 10:18:03.000000', 184);
 
 -- --------------------------------------------------------
 
@@ -162,6 +188,14 @@ CREATE TABLE `sales` (
   `sales_date` datetime(6) NOT NULL,
   `user_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `sales`
+--
+
+INSERT INTO `sales` (`sale_id`, `order_id`, `total_sales`, `sales_date`, `user_id`) VALUES
+(11, 18, 54, '2024-11-17 16:55:08.000000', 1),
+(12, 19, 184, '2024-11-18 10:18:03.000000', 1);
 
 -- --------------------------------------------------------
 
@@ -181,7 +215,10 @@ CREATE TABLE `user_acc` (
 --
 
 INSERT INTO `user_acc` (`User_id`, `username`, `password`, `role`) VALUES
-(1, 'admin', '$2y$10$/mZoUSDLsZRD/YXcvvlxS.7YQ5F.yt7mCtWjqlRZOb3BVuAbw13EG', 1);
+(1, 'admin', '$2y$10$/mZoUSDLsZRD/YXcvvlxS.7YQ5F.yt7mCtWjqlRZOb3BVuAbw13EG', 1),
+(2, 'admin1', '$2y$10$klQVrS4bOo.luLJyIGDUMu7ps6w24o7dZD039IvjXE6TbC/ISbHNm', 1),
+(3, 'admin2', '$2y$10$g94zqr7GiGuf4AycQeWrUuxkmSQBR11vblOdl9nSeSiTqY.8hHcHO', 1),
+(4, 'staff1', '$2y$10$dztoSfznH4AdUBGHq2V4pOVucey92OY.Sr2Gtrwi.XOmtwEB21KIG', 0);
 
 --
 -- Indexes for dumped tables
@@ -258,49 +295,49 @@ ALTER TABLE `user_acc`
 -- AUTO_INCREMENT for table `customer`
 --
 ALTER TABLE `customer`
-  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `inventory`
 --
 ALTER TABLE `inventory`
-  MODIFY `inventory_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `inventory_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `order`
 --
 ALTER TABLE `order`
-  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `order_item`
 --
 ALTER TABLE `order_item`
-  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `product`
 --
 ALTER TABLE `product`
-  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `receipt`
 --
 ALTER TABLE `receipt`
-  MODIFY `receipt_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `receipt_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `sales`
 --
 ALTER TABLE `sales`
-  MODIFY `sale_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `sale_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `user_acc`
 --
 ALTER TABLE `user_acc`
-  MODIFY `User_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `User_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- Constraints for dumped tables

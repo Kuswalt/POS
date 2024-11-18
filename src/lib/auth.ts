@@ -1,60 +1,77 @@
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 
-interface User {
-    userId: number | null;
-    username: string | null;
+// Define the user store type
+type User = {
+    userId: number;
+    username: string;
     isAuthenticated: boolean;
-    role: number | null;
+    role?: number;
+};
+
+// Initialize with a clearly unauthenticated state
+const initialState: User = {
+    userId: 0,
+    username: '',
+    isAuthenticated: false,
+    role: 0
+};
+
+// Create the store with initial state
+export const userStore = writable<User>(initialState);
+
+export function clearUser() {
+    userStore.set(initialState);
 }
 
-export const userStore = writable<User>({
-    userId: null,
-    username: null,
-    isAuthenticated: false,
-    role: null
-});
+export async function logout() {
+    try {
+        const response = await fetch('http://localhost/POS/api/routes.php?request=logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+        
+        if (data.status) {
+            clearUser();
+            // Clear any stored authentication data
+            localStorage.removeItem('auth');
+            goto('/');
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+}
 
-// Add helper functions
-export function setUser(userData: { User_id: number; username: string; role: number }) {
+export function setUser(userData: { userId: number; username: string; role?: number }) {
     const user = {
-        userId: userData.User_id,
+        userId: userData.userId,
         username: userData.username,
         isAuthenticated: true,
         role: userData.role
     };
     userStore.set(user);
-    localStorage.setItem('user', JSON.stringify(user));
+    // Store authentication data
+    localStorage.setItem('auth', JSON.stringify(user));
 }
 
-export function clearUser() {
-    userStore.set({
-        userId: null,
-        username: null,
-        isAuthenticated: false,
-        role: null
-    });
-    localStorage.removeItem('user');
-}
-
-export function logout() {
-    clearUser();
-    goto('/');
-}
-
-function loadUserFromStorage() {
-    if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('user');
-        if (stored) {
-            try {
-                const userData = JSON.parse(stored);
-                userStore.set(userData);
-            } catch (e) {
-                clearUser();
+// Function to check authentication status
+export function checkAuth() {
+    const stored = localStorage.getItem('auth');
+    if (stored) {
+        try {
+            const user = JSON.parse(stored);
+            if (user.userId && user.username && user.isAuthenticated) {
+                userStore.set(user);
+                return true;
             }
+        } catch (error) {
+            console.error('Error parsing auth data:', error);
+            localStorage.removeItem('auth');
         }
     }
+    clearUser();
+    return false;
 }
-
-// Load user data on initialization
-loadUserFromStorage();

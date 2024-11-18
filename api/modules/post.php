@@ -106,29 +106,66 @@ class Post {
     public function addMenuItem($data) {
         global $conn;
         
-        if (!isset($data['name'], $data['image'], $data['price'], $data['category'])) {
-            error_log('Missing fields. Available data: ' . print_r($data, true));
-            return ["status" => false, "message" => "Missing required fields"];
-        }
-
-        $name = $data['name'];
-        $image = $data['image'];
-        $price = $data['price'];
-        $category = $data['category'];
-
-        $sql = "INSERT INTO product (name, image, price, category) VALUES (:name, :image, :price, :category)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':image', $image);
-        $stmt->bindParam(':price', $price);
-        $stmt->bindParam(':category', $category);
-
         try {
+            // Check for existing product with same attributes
+            $sql = "SELECT * FROM product WHERE 
+                    name = :name AND 
+                    category = :category AND 
+                    price = :price";
+            
+            // Add size check only for Pizza and Drinks
+            if (in_array($data['category'], ['Pizza', 'Drinks'])) {
+                $sql .= " AND size = :size";
+            }
+            
+            $stmt = $conn->prepare($sql);
+            $params = [
+                ':name' => $data['name'],
+                ':category' => $data['category'],
+                ':price' => $data['price']
+            ];
+            
+            // Add size parameter only for Pizza and Drinks
+            if (in_array($data['category'], ['Pizza', 'Drinks'])) {
+                $params[':size'] = $data['size'];
+            }
+            
+            $stmt->execute($params);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($existing) {
+                return [
+                    "status" => false,
+                    "message" => "A similar product already exists with these details",
+                    "duplicate" => true
+                ];
+            }
+            
+            // If no duplicate found, proceed with insertion
+            $sql = "INSERT INTO product (name, image, price, category, size) 
+                    VALUES (:name, :image, :price, :category, :size)";
+            $stmt = $conn->prepare($sql);
+            
+            $size = isset($data['size']) && !empty($data['size']) ? $data['size'] : 'base-size';
+            
+            $stmt->bindParam(':name', $data['name']);
+            $stmt->bindParam(':image', $data['image']);
+            $stmt->bindParam(':price', $data['price']);
+            $stmt->bindParam(':category', $data['category']);
+            $stmt->bindParam(':size', $size);
+            
             $stmt->execute();
-            $product_id = $conn->lastInsertId();
-            return ["status" => true, "message" => "Menu item added successfully", "product_id" => $product_id];
+            return [
+                "status" => true,
+                "message" => "Menu item added successfully",
+                "product_id" => $conn->lastInsertId()
+            ];
+            
         } catch (PDOException $e) {
-            return ["status" => false, "message" => "Failed to add menu item: " . $e->getMessage()];
+            return [
+                "status" => false,
+                "message" => "Failed to add menu item: " . $e->getMessage()
+            ];
         }
     }
 
@@ -222,12 +259,11 @@ class Post {
             }
             
             // Create receipt (existing code)
-            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount, printable_copy) 
-                    VALUES (:order_id, NOW(), :total_amount, :printable_copy)";
+            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount) 
+                    VALUES (:order_id, NOW(), :total_amount)";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':order_id', $order_id);
             $stmt->bindParam(':total_amount', $data['total_amount']);
-            $stmt->bindParam(':printable_copy', $order_id);
             $stmt->execute();
             
             $conn->commit();

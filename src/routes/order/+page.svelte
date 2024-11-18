@@ -4,7 +4,9 @@
   import ItemCard from '$lib/itemCard.svelte';
   import Cart from '../cart/+page.svelte';
   import { onMount } from 'svelte';
-  import { userStore } from '$lib/auth.js';
+  import { userStore } from '$lib/auth';
+  import { goto } from '$app/navigation';
+  import { checkAuth } from '$lib/auth';
 
   type Product = {
     product_id: number;
@@ -24,6 +26,13 @@
     quantity: number;
   };
 
+  type GroupedProduct = {
+    name: string;
+    image: string;
+    category: string;
+    variants: Product[];
+  };
+
   let y = 0;
   let innerWidth = 0;
   let innerHeight = 0;
@@ -32,35 +41,43 @@
   let selectedCategory = 'All';
   let searchQuery = '';
   let userId: number;
+  let showSizeModal = false;
+  let selectedProduct: GroupedProduct | null = null;
 
-  userStore.subscribe((user) => {
-    if (!user.userId) {
-        window.location.href = '/login';
-        return;
-    }
+  userStore.subscribe(user => {
     userId = user.userId;
   });
 
   onMount(async () => {
+    if (!checkAuth()) {
+      goto('/');
+    }
     await fetchItems();
   });
 
   async function fetchItems() {
-    const response = await fetch('http://localhost/POS/api/routes.php?request=get-menu-items');
-    const data = await response.json();
-    products = data.map((p: any) => ({ 
-        ...p,
-        price: Number(p.price),
-        product_id: p.product_id || p.id
-    }));
+    try {
+        const response = await fetch('http://localhost/POS/api/routes.php?request=get-menu-items');
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+            products = data.map((p: any) => ({ 
+                ...p,
+                price: Number(p.price),
+                product_id: p.product_id || p.id,
+                image: p.image || ''
+            }));
+        } else {
+            console.error('Unexpected data format:', data);
+            products = [];
+        }
+    } catch (error) {
+        console.error('Error fetching items:', error);
+        products = [];
+    }
   }
 
   async function addToCart(product: Product) {
-    if (!product.is_available) {
-        alert('This item is currently unavailable');
-        return;
-    }
-
     const existingItem = cartItems.find(item => item.product_id === product.product_id);
     
     try {
@@ -69,6 +86,7 @@
             quantity: 1,
             user_id: userId
         };
+        console.log('Sending data:', data);
 
         const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
             method: 'POST',
@@ -79,6 +97,7 @@
         });
 
         const result = await response.json();
+        console.log('Response:', result);
         
         if (result.status) {
             if (existingItem) {
@@ -124,12 +143,41 @@
     return cartItems.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
   }
 
-  $: filteredProducts = products
-    .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
-    .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  $: groupedProducts = products.reduce((groups: { [key: string]: GroupedProduct }, product) => {
+    const key = `${product.name}-${product.category}`;
+    if (!groups[key]) {
+      groups[key] = {
+        name: product.name,
+        image: product.image,
+        category: product.category,
+        variants: []
+      };
+    }
+    groups[key].variants.push(product);
+    return groups;
+  }, {});
+
+  $: filteredGroupedProducts = Object.values(groupedProducts)
+    .filter(group => selectedCategory === 'All' || group.category === selectedCategory)
+    .filter(group => group.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   $: categories = ['All', ...new Set(products.map(p => p.category))];
   $: total = getTotal();
+
+  async function handleProductClick(group: GroupedProduct) {
+    if (['Drinks', 'Pizza'].includes(group.category) && group.variants.length > 1) {
+      selectedProduct = group;
+      showSizeModal = true;
+    } else {
+      await addToCart(group.variants[0]);
+    }
+  }
+
+  async function handleSizeSelection(variant: Product) {
+    showSizeModal = false;
+    await addToCart(variant);
+    selectedProduct = null;
+  }
 </script>
 
 <Header {y} {innerHeight} />
@@ -164,16 +212,16 @@
       <div class="products-container">
         <div class="products-section">
           <div class="grid grid-cols-3 gap-4">
-            {#each filteredProducts as product}
+            {#each filteredGroupedProducts as group}
               <button 
                 type="button" 
                 class="product-card"
-                on:click={() => addToCart(product)}
+                on:click={() => handleProductClick(group)}
               >
                 <ItemCard product={{
                   product_id: group.variants[0].product_id,
                   name: group.name,
-                  image: group.image,
+                  image: group.variants[0].image,
                   price: group.variants[0].price.toString(),
                   category: group.category
                 }} />
@@ -193,6 +241,24 @@
     />
   </div>
 </div>
+
+{#if showSizeModal && selectedProduct}
+  <div class="modal-backdrop">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">Select Size for {selectedProduct.name}</h2>
+      <div class="grid gap-4">
+        {#each selectedProduct.variants as variant}
+          <button
+            class="size-option"
+            on:click={() => handleSizeSelection(variant)}
+          >
+            {variant.size} - ₱{variant.price}
+          </button>
+        {/each}
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .content {
@@ -273,5 +339,40 @@
     outline: none;
     border-color: #47cb50;
     box-shadow: 0 0 0 2px rgba(71, 203, 80, 0.2);
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    width: 90%;
+    max-width: 400px;
+  }
+
+  .size-option {
+    width: 100%;
+    padding: 1rem;
+    background: #f3f4f6;
+    border-radius: 0.5rem;
+    text-align: center;
+    transition: background-color 0.2s;
+  }
+
+  .size-option:hover {
+    background: #47cb50;
+    color: white;
   }
 </style>

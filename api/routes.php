@@ -44,8 +44,12 @@ try {
                         'name' => $_POST['name'] ?? null,
                         'image' => $_FILES['image']['name'] ?? null,
                         'price' => $_POST['price'] ?? null,
-                        'category' => $_POST['category'] ?? null
+                        'category' => $_POST['category'] ?? null,
+                        'size' => $_POST['size'] ?? 'base-size'
                     );
+                    
+                    // Debug log
+                    error_log('Received POST data: ' . print_r($_POST, true));
                     
                     // Handle file upload
                     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
@@ -83,6 +87,12 @@ try {
                     echo json_encode($post->addReceipt($data));
                     break;
                     
+                case 'logout':
+                    session_start();
+                    session_destroy();
+                    echo json_encode(["status" => true, "message" => "Logged out successfully"]);
+                    break;
+                    
                 default:
                     // For other POST requests, use JSON
                     $data = json_decode(file_get_contents("php://input"), true);
@@ -116,6 +126,7 @@ try {
         case 'GET':
             switch ($request[0]) {
                 case 'get-menu-items':
+                    $get = new Get();
                     echo json_encode($get->getMenuItems());
                     break;
                 case 'get-items':
@@ -125,8 +136,8 @@ try {
                     echo json_encode($get->getSalesData());
                     break;
                 default:
-                    echo json_encode(["error" => "Invalid GET request"]);
-                    http_response_code(404);
+                    echo json_encode(["error" => "Invalid request"]);
+                    http_response_code(400);
                     break;
             }
             break;
@@ -197,6 +208,7 @@ try {
             break;
     }
 } catch (Exception $e) {
+    error_log("Server error: " . $e->getMessage());
     echo json_encode([
         "status" => false,
         "message" => "Server error: " . $e->getMessage()

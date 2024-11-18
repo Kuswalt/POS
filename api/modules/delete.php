@@ -24,23 +24,37 @@ class Delete {
     public function deleteMenuItem($data) {
         global $conn;
         $id = $data['product_id'];
-
-        // First, delete related items in the cart
-        $deleteCartSql = "DELETE FROM cart WHERE product_id = :id";
-        $stmt = $conn->prepare($deleteCartSql);
-        $stmt->bindParam(':id', $id);
-        $stmt->execute();
-
-        // Now delete the product
-        $sql = "DELETE FROM product WHERE product_id = :id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':id', $id);
-
+        
         try {
+            $conn->beginTransaction();
+            
+            // Delete from order_item first
+            $deleteOrderItemSql = "DELETE FROM order_item WHERE product_id = :id";
+            $stmt = $conn->prepare($deleteOrderItemSql);
+            $stmt->bindParam(':id', $id);
             $stmt->execute();
+            
+            // Delete from cart
+            $deleteCartSql = "DELETE FROM cart WHERE product_id = :id";
+            $stmt = $conn->prepare($deleteCartSql);
+            $stmt->bindParam(':id', $id);
+            $stmt->execute();
+            
+            // Finally delete the product
+            $deleteProductSql = "DELETE FROM product WHERE product_id = :id";
+            $stmt = $conn->prepare($deleteProductSql);
+            $stmt->bindParam(':id', $id);
+            $stmt->execute();
+            
+            $conn->commit();
             return ["status" => true, "message" => "Menu item deleted successfully"];
+            
         } catch (PDOException $e) {
-            return ["status" => false, "message" => "Failed to delete menu item: " . $e->getMessage()];
+            $conn->rollBack();
+            return [
+                "status" => false, 
+                "message" => "Failed to delete menu item: " . $e->getMessage()
+            ];
         }
     }
 

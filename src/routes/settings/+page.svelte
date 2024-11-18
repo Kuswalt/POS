@@ -1,21 +1,28 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Header from '$lib/header.svelte';
+  import Alert from '$lib/components/Alert.svelte';
 
   let y = 0;
   let innerHeight = 0;
 
   // Define types for items and newItem
-  type Item = { product_id: number; name: string; image: string | File; price: string; category: string; imageUrl?: string };
-  type NewItem = { name: string; image: File; price: string; category: string };
+  type Item = { product_id: number; name: string; image: string | File; price: string; category: string; size?: string; imageUrl?: string };
+  type NewItem = { name: string; image: File; price: string; category: string; size?: string };
 
   let items: Item[] = [];
-  const categories = ['Pizza', 'Burger & Fries', 'Nachos', 'Fruit Soda', 'Yakult Mix', 'Iced Coffee',
-   'Frappe Non-Coffee','Frappe Coffee Base', 'Classic Milk Tea', 'Chocolate Series', 'Cheesecake Series']; // Add your categories here
-  let newItem: NewItem = { name: '', image: new File([], ''), price: '', category: categories[0] };
+  const categories = ['Pizza', 'Burger & Fries', 'Nachos', 'Drinks', 'Chocolate Series', 'Cheesecake Series']; // Add your categories here
+  const sizeOptions = {
+    'Drinks': ['160 oz', '220 oz'],
+    'Pizza': ['10"', '12"']
+  };
+  let newItem: NewItem = { name: '', image: new File([], ''), price: '', category: categories[0], size: '' };
   let editItem: Item; // Change the type declaration to allow null
   let isEditModalOpen = false;
   let searchQuery = '';
+  let showAlert = false;
+  let alertMessage = '';
+  let alertType: 'success' | 'warning' | 'error' = 'warning';
 
   onMount(async () => {
     await fetchItems();
@@ -26,14 +33,40 @@
     const data = await response.json();
     items = data.map((item: Item) => ({
       ...item,
-      imageUrl: item.image ? `/POS/uploads/${item.image}` : 'placeholder.jpg'
+      imageUrl: item.image ? `http://localhost/POS/uploads/${item.image}` : '/placeholder.jpg'
     }));
   }
 
   async function addItem() {
-    console.log('New Item:', newItem);
     if (!newItem.image) {
-      alert("Please select an image.");
+      alertMessage = "Please select an image.";
+      alertType = 'warning';
+      showAlert = true;
+      setTimeout(() => showAlert = false, 3000);
+      return;
+    }
+
+    // Check if size is required but not selected
+    if (['Pizza', 'Drinks'].includes(newItem.category) && !newItem.size) {
+      alertMessage = `Size is required for ${newItem.category}`;
+      alertType = 'warning';
+      showAlert = true;
+      setTimeout(() => showAlert = false, 3000);
+      return;
+    }
+
+    // Check if item already exists
+    const existingItem = items.find(item => 
+      item.name.toLowerCase() === newItem.name.toLowerCase() && 
+      item.category === newItem.category &&
+      (item.size === newItem.size || (!item.size && !newItem.size))
+    );
+
+    if (existingItem) {
+      alertMessage = `A ${newItem.category} item with name "${newItem.name}" ${newItem.size ? `and size ${newItem.size}` : ''} already exists`;
+      alertType = 'warning';
+      showAlert = true;
+      setTimeout(() => showAlert = false, 3000);
       return;
     }
 
@@ -42,28 +75,68 @@
     formData.append('image', newItem.image);
     formData.append('price', newItem.price);
     formData.append('category', newItem.category);
+    formData.append('size', newItem.size || 'base-size');
 
-    const response = await fetch('http://localhost/POS/api/routes.php?request=add-menu-item', {
-      method: 'POST',
-      body: formData,
-    });
-    const result = await response.json();
-    if (result.status) {
-      await fetchItems(); // Refresh the items list
-      newItem = { name: '', image: new File([], ''), price: '', category: categories[0] }; // Reset form
-    } else {
-      alert(result.message);
+    try {
+      const response = await fetch('http://localhost/POS/api/routes.php?request=add-menu-item', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      
+      showAlert = true;
+      if (result.status) {
+        alertMessage = "Item added successfully";
+        alertType = 'success';
+        await fetchItems();
+        // Reset form
+        newItem = { name: '', image: new File([], ''), price: '', category: categories[0], size: '' };
+        // Reset file input
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      } else {
+        if (result.duplicate) {
+          alertType = 'warning';
+          alertMessage = "This product already exists with these details";
+        } else {
+          alertType = 'error';
+          alertMessage = result.message || "Failed to add item";
+        }
+      }
+      
+      // Auto-hide alert after 3 seconds
+      setTimeout(() => showAlert = false, 3000);
+      
+    } catch (error) {
+      showAlert = true;
+      alertType = 'error';
+      alertMessage = "Error adding item: Network error";
+      setTimeout(() => showAlert = false, 3000);
+      console.error('Error:', error);
     }
   }
 
   async function updateItem() {
     if (!editItem) return;
 
+    // Validate size for Drinks and Pizza
+    if (['Drinks', 'Pizza'].includes(editItem.category) && (!editItem.size || editItem.size === 'base-size')) {
+      alertMessage = `Please select a size for ${editItem.category}`;
+      alertType = 'warning';
+      showAlert = true;
+      return;
+    }
+
     const formData = new FormData();
     formData.append('product_id', editItem.product_id.toString());
     formData.append('name', editItem.name);
     formData.append('price', editItem.price);
     formData.append('category', editItem.category);
+    
+    // Handle size based on category
+    const size = ['Drinks', 'Pizza'].includes(editItem.category) ? editItem.size : 'base-size';
+    formData.append('size', size);
     
     // Handle image upload if a new image was selected
     if (editItem.image instanceof File) {
@@ -74,13 +147,24 @@
       method: 'POST',
       body: formData,
     });
+    
     const result = await response.json();
+    
     if (result.status) {
+      alertMessage = "Menu item updated successfully";
+      alertType = 'success';
       await fetchItems();
       isEditModalOpen = false;
     } else {
-      alert(result.message);
+      alertMessage = result.message;
+      alertType = 'error';
     }
+    
+    showAlert = true;
+    // Auto-hide alert after 3 seconds
+    setTimeout(() => {
+      showAlert = false;
+    }, 3000);
   }
 
   async function deleteItem(itemId: number) {
@@ -116,9 +200,27 @@
       item.category.toLowerCase().includes(lowerQuery)
     );
   }
+
+  // Add this function to handle category changes
+  function handleCategoryChange(newCategory: string) {
+    editItem.category = newCategory;
+    // Reset size if changing to a non-size category
+    if (!['Drinks', 'Pizza'].includes(newCategory)) {
+      editItem.size = 'base-size';
+    } else if (!editItem.size || editItem.size === 'base-size') {
+      // If changing to Drinks/Pizza and size is not set or base-size, set it to empty to force selection
+      editItem.size = '';
+    }
+  }
 </script>
 
 <Header {y} {innerHeight} />
+
+{#if showAlert}
+  <div class="alert-container">
+    <Alert type={alertType} message={alertMessage} />
+  </div>
+{/if}
 
 <div class="settings-container">
   <div class="settings-content">
@@ -163,6 +265,18 @@
               <option value={category}>{category}</option>
             {/each}
           </select>
+          {#if ['Drinks', 'Pizza'].includes(newItem.category)}
+            <select 
+              bind:value={newItem.size} 
+              class="p-2 border rounded-md w-full"
+              required
+            >
+              <option value="" disabled selected>Select size</option>
+              {#each sizeOptions[newItem.category] as size}
+                <option value={size}>{size}</option>
+              {/each}
+            </select>
+          {/if}
         </div>
         <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md w-full">Add Item</button>
       </form>
@@ -190,7 +304,7 @@
                 <img 
                   src={editItem.image instanceof File 
                     ? URL.createObjectURL(editItem.image) 
-                    : `/POS/uploads/${editItem.image}`}
+                    : `http://localhost/POS/uploads/${editItem.image}`}
                   alt={editItem.name}
                   class="w-full h-48 object-cover rounded-md mb-2"
                   on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
@@ -212,6 +326,7 @@
               <input type="text" bind:value={editItem.price} placeholder="Price" class="p-2 border rounded-md" required />
               <select 
                 bind:value={editItem.category} 
+                on:change={(e) => handleCategoryChange(e.target.value)}
                 class="p-2 border rounded-md"
                 required 
               >
@@ -219,6 +334,18 @@
                   <option value={category}>{category}</option>
                 {/each}
               </select>
+              {#if ['Drinks', 'Pizza'].includes(editItem.category)}
+                <select 
+                  bind:value={editItem.size} 
+                  class="p-2 border rounded-md"
+                  required
+                >
+                  <option value="" disabled>Select size</option>
+                  {#each sizeOptions[editItem.category] as size}
+                    <option value={size}>{size}</option>
+                  {/each}
+                </select>
+              {/if}
             </div>
             <div class="flex gap-2">
               <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md flex-1">Update</button>
@@ -233,7 +360,7 @@
       {#each filterItems(items, searchQuery) as item}
         <div class="item-card">
           <img 
-            src={`/POS/uploads/${item.image}`}
+            src={`http://localhost/POS/uploads/${item.image}`}
             alt={item.name} 
             class="item-image" 
             on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
@@ -242,6 +369,9 @@
             <h3 class="font-bold">{item.name}</h3>
             <p>₱{item.price}</p>
             <p class="text-gray-600">{item.category}</p>
+            {#if item.size && item.size !== 'base-size'}
+              <p class="text-sm text-gray-500">Size: {item.size}</p>
+            {/if}
             <div class="item-actions">
               <button on:click={() => startEdit(item)} class="edit-btn">Edit</button>
               <button on:click={() => deleteItem(item.product_id)} class="delete-btn">Delete</button>
@@ -363,5 +493,15 @@
 
   .current-image img {
     border: 1px solid #e2e8f0;
+  }
+
+  .alert-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 90%;
+    max-width: 500px;
   }
 </style>

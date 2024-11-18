@@ -1,39 +1,41 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { setUser } from '$lib/auth';
-    import { onMount } from 'svelte';
 
     let username = '';
     let password = '';
+    let errorMessage = '';
 
-    async function login() {
+    onMount(() => {
+        localStorage.removeItem('auth');
+    });
+
+    async function handleSubmit() {
         try {
             const response = await fetch('http://localhost/POS/api/routes.php?request=login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    username,
-                    password
-                })
+                body: JSON.stringify({ username, password })
             });
 
-            const result = await response.json();
-            
-            if (result.status) {
+            const data = await response.json();
+
+            if (data.status) {
                 setUser({
-                    User_id: result.userId,
+                    userId: data.userId,
                     username: username,
-                    role: result.role
+                    role: data.role
                 });
                 goto('/order');
             } else {
-                alert(result.message || 'Login failed');
+                errorMessage = data.message;
             }
         } catch (error) {
             console.error('Login error:', error);
-            alert('Failed to connect to the server');
+            errorMessage = 'Failed to login. Please try again.';
         }
     }
 </script>
@@ -51,7 +53,7 @@
                     <div class="form-group mb-3">
                         <input type="password" class="form-control form-control-sm w-full rounded-full" id="password" bind:value={password} placeholder="Password">
                     </div>
-                    <button type="button" class="btn w-full rounded-full bg-[#47cb50] text-white py-2" on:click={login}>Login</button>
+                    <button type="button" class="btn w-full rounded-full bg-[#47cb50] text-white py-2" on:click={handleSubmit}>Login</button>
                 </form>
                 <div class="account-section mt-4 text-right">
                     <a href="/register" class="new-account-link text-[#025464] font-bold text-sm">Create a new account</a>
