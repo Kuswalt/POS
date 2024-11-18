@@ -6,6 +6,11 @@
     price: string;
     category: string;
     is_available: boolean;
+    sizes?: Array<{
+      size_id: number;
+      size_name: string;
+      price: string;
+    }>;
   };
 </script>
 
@@ -13,7 +18,16 @@
   <img src={product.image ? `uploads/${product.image}` : 'placeholder.jpg'} alt={product.name} />
   <div class="item-details">
     <h3>{product.name}</h3>
-    <p class="price">₱{product.price}</p>
+    {#if product.sizes && product.sizes.length > 0}
+      <p class="price">
+        ₱{Math.min(...product.sizes.map(s => Number(s.price)))} - 
+        ₱{Math.max(...product.sizes.map(s => Number(s.price)))}
+      </p>
+      <span class="size-badge">Multiple Sizes</span>
+    {:else}
+      <p class="price">₱{product.price}</p>
+      <span class="size-badge">Regular</span>
+    {/if}
     {#if !product.is_available}
       <div class="unavailable-badge">Unavailable</div>
     {/if}
@@ -90,5 +104,14 @@
     border-radius: 4px;
     font-weight: bold;
     text-transform: uppercase;
+  }
+
+  .size-badge {
+    font-size: 0.75rem;
+    color: #4CAF50;
+    background: #e8f5e9;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-top: 4px;
   }
 </style>

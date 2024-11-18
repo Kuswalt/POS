@@ -143,4 +143,26 @@ class Delete {
             return ["status" => false, "message" => "Failed to delete orders: " . $e->getMessage()];
         }
     }
+
+    public function removeFromCart($data) {
+        global $conn;
+        
+        try {
+            $sql = "DELETE FROM cart WHERE user_id = :user_id AND product_id = :product_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':user_id', $data['user_id']);
+            $stmt->bindParam(':product_id', $data['product_id']);
+            $stmt->execute();
+            
+            return [
+                "status" => true,
+                "message" => "Item removed from cart successfully"
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Failed to remove item from cart: " . $e->getMessage()
+            ];
+        }
+    }
 }

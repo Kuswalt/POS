@@ -83,6 +83,26 @@ try {
                     echo json_encode($post->addReceipt($data));
                     break;
                     
+                case 'add-product-ingredients':
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    echo json_encode($post->addProductIngredients($data));
+                    break;
+                    
+                case 'add-product-sizes':
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    echo json_encode($post->addProductSizes($data));
+                    break;
+                    
+                case 'add-size-ingredients':
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    echo json_encode($post->addSizeIngredients($data));
+                    break;
+                    
+                case 'delete-product-size':
+                    $data = json_decode(file_get_contents("php://input"), true);
+                    echo json_encode($post->deleteProductSize($data));
+                    break;
+                    
                 default:
                     // For other POST requests, use JSON
                     $data = json_decode(file_get_contents("php://input"), true);
@@ -124,8 +144,44 @@ try {
                 case 'get-sales-data':
                     echo json_encode($get->getSalesData());
                     break;
+                case 'get-product-sizes':
+                    if (!isset($_GET['product_id'])) {
+                        echo json_encode(["status" => false, "message" => "Product ID is required"]);
+                        exit;
+                    }
+                    $result = $get->getProductSizes($_GET['product_id']);
+                    echo json_encode($result);
+                    break;
+                case 'get-product-ingredients':
+                    if (!isset($_GET['product_id'])) {
+                        echo json_encode(["status" => false, "message" => "Product ID is required"]);
+                        exit;
+                    }
+                    $result = $get->getProductIngredients($_GET['product_id']);
+                    echo json_encode($result);
+                    break;
+                case 'get-size-ingredients':
+                    $size_id = $_GET['size_id'] ?? null;
+                    if ($size_id) {
+                        $result = $get->getSizeIngredients($size_id);
+                        echo json_encode($result);
+                    } else {
+                        echo json_encode(["status" => false, "message" => "Size ID is required"]);
+                    }
+                    break;
+                case 'get-cart-items':
+                    if (!isset($_GET['user_id'])) {
+                        echo json_encode(["status" => false, "message" => "User ID is required"]);
+                        break;
+                    }
+                    echo json_encode($get->getCartItems($_GET['user_id']));
+                    break;
                 default:
-                    echo json_encode(["error" => "Invalid GET request"]);
+                    echo json_encode([
+                        "status" => false,
+                        "message" => "Endpoint not found",
+                        "data" => []
+                    ]);
                     http_response_code(404);
                     break;
             }
@@ -184,6 +240,12 @@ try {
                     break;
                 case 'delete-all-orders':
                     echo json_encode($delete->deleteAllOrders());
+                    break;
+                case 'remove-from-cart':
+                    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+                        $data = json_decode(file_get_contents('php://input'), true);
+                        echo json_encode($delete->removeFromCart($data));
+                    }
                     break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);

@@ -8,24 +8,48 @@ class Get {
     public function getMenuItems() {
         global $conn;
 
-        $sql = "SELECT p.*, 
-                CASE 
-                    WHEN MIN(i.stock_quantity / NULLIF(pi.quantity_needed, 0)) < 1 THEN false 
-                    ELSE true 
-                END as is_available
-                FROM product p
-                LEFT JOIN product_ingredients pi ON p.product_id = pi.product_id
-                LEFT JOIN inventory i ON pi.inventory_id = i.inventory_id
-                GROUP BY p.product_id";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            // First get all products with availability
+            $sql = "SELECT p.*, 
+                    CASE 
+                        WHEN MIN(i.stock_quantity / NULLIF(pi.quantity_needed, 0)) < 1 THEN false 
+                        ELSE true 
+                    END as is_available
+                    FROM product p
+                    LEFT JOIN product_ingredients pi ON p.product_id = pi.product_id
+                    LEFT JOIN inventory i ON pi.inventory_id = i.inventory_id
+                    GROUP BY p.product_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Then get sizes for each product
+            $sizesSql = "SELECT size_id, product_id, size_name, price 
+                         FROM product_sizes 
+                         WHERE product_id = :product_id";
+            $sizeStmt = $conn->prepare($sizesSql);
+
+            // Add sizes to each product
+            foreach ($products as &$product) {
+                $sizeStmt->bindParam(':product_id', $product['product_id']);
+                $sizeStmt->execute();
+                $sizes = $sizeStmt->fetchAll(PDO::FETCH_ASSOC);
+                $product['sizes'] = $sizes ?: [];
+            }
+
+            return $products;
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Failed to fetch menu items: " . $e->getMessage()
+            ];
+        }
     }
     public function getItems() {
         global $conn;
         
-        $sql = "SELECT inventory_id, item_name, stock_quantity, last_updated FROM inventory ORDER BY item_name";
+        $sql = "SELECT inventory_id, item_name, stock_quantity, last_updated, unit_of_measure FROM inventory ORDER BY item_name";
         $stmt = $conn->prepare($sql);
         
         try {
@@ -167,5 +191,118 @@ class Get {
         }
         
         return ["status" => true];
+    }
+    public function getProductIngredients($product_id) {
+        global $conn;
+        
+        try {
+            $sql = "SELECT pi.*, i.item_name 
+                    FROM product_ingredients pi
+                    JOIN inventory i ON pi.inventory_id = i.inventory_id
+                    WHERE pi.product_id = :product_id";
+                    
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $product_id);
+            $stmt->execute();
+            
+            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            return [
+                "status" => true,
+                "data" => $ingredients
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Failed to fetch product ingredients: " . $e->getMessage()
+            ];
+        }
+    }
+    public function getProductSizes($product_id) {
+        global $conn;
+        
+        try {
+            // Get all sizes first (even those without ingredients)
+            $sql = "SELECT ps.size_id, ps.size_name, ps.price,
+                    GROUP_CONCAT(
+                        DISTINCT
+                        JSON_OBJECT(
+                            'inventory_id', psi.inventory_id,
+                            'quantity_needed', psi.quantity_needed,
+                            'unit_of_measure', psi.unit_of_measure
+                        )
+                    ) as ingredients
+                    FROM product_sizes ps
+                    LEFT JOIN product_size_ingredients psi ON ps.size_id = psi.size_id
+                    WHERE ps.product_id = :product_id
+                    GROUP BY ps.size_id, ps.size_name, ps.price";
+                    
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $product_id);
+            $stmt->execute();
+            
+            $sizes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Process ingredients for each size
+            foreach ($sizes as &$size) {
+                if ($size['ingredients']) {
+                    $size['ingredients'] = array_map(function($ing) {
+                        return json_decode($ing, true);
+                    }, explode(',', $size['ingredients']));
+                } else {
+                    $size['ingredients'] = [];
+                }
+            }
+            
+            return [
+                "status" => true,
+                "data" => $sizes
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Failed to fetch product sizes: " . $e->getMessage()
+            ];
+        }
+    }
+    public function getSizeIngredients($size_id) {
+        global $conn;
+        
+        try {
+            $sql = "SELECT psi.inventory_id, psi.quantity_needed, psi.unit_of_measure
+                    FROM product_size_ingredients psi
+                    WHERE psi.size_id = :size_id";
+                    
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':size_id', $size_id);
+            $stmt->execute();
+            
+            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return ["status" => true, "data" => $ingredients];
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => "Error fetching size ingredients: " . $e->getMessage()];
+        }
+    }
+    public function getCartItems($user_id) {
+        global $conn;
+        
+        $sql = "SELECT c.cart_id as id, c.product_id, p.name, 
+                COALESCE(ps.price, p.price) as price, c.quantity, p.image,
+                ps.size_id, ps.size_name
+                FROM cart c
+                JOIN products p ON c.product_id = p.product_id
+                LEFT JOIN product_sizes ps ON c.size_id = ps.size_id
+                WHERE c.user_id = :user_id";
+                
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':user_id', $user_id);
+        
+        try {
+            $stmt->execute();
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return ["status" => true, "data" => $items];
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => "Failed to fetch cart items: " . $e->getMessage()];
+        }
     }
 }
