@@ -14,8 +14,12 @@
   let items: Item[] = [];
   const categories = ['Pizza', 'Burger & Fries', 'Nachos', 'Drinks', 'Chocolate Series', 'Cheesecake Series']; // Add your categories here
   const sizeOptions = {
-    'Drinks': ['160 oz', '220 oz'],
-    'Pizza': ['10"', '12"']
+    'Pizza': ['Small', 'Standard', 'Large'],
+    'Burger & Fries': ['Small', 'Standard', 'Large'],
+    'Nachos': ['Small', 'Standard', 'Large'],
+    'Drinks': ['Small', 'Standard', 'Large'],
+    'Chocolate Series': ['Small', 'Standard', 'Large'],
+    'Cheesecake Series': ['Small', 'Standard', 'Large']
   };
   let newItem: NewItem = { name: '', image: new File([], ''), price: '', category: categories[0], size: '' };
   let editItem: Item; // Change the type declaration to allow null
@@ -49,15 +53,6 @@
       return;
     }
 
-    // Check if size is required but not selected
-    if (['Pizza', 'Drinks'].includes(newItem.category) && !newItem.size) {
-      alertMessage = `Size is required for ${newItem.category}`;
-      alertType = 'warning';
-      showAlert = true;
-      setTimeout(() => showAlert = false, 3000);
-      return;
-    }
-
     // Check if item already exists
     const existingItem = items.find(item => 
       item.name.toLowerCase() === newItem.name.toLowerCase() && 
@@ -78,7 +73,7 @@
     formData.append('image', newItem.image);
     formData.append('price', newItem.price);
     formData.append('category', newItem.category);
-    formData.append('size', newItem.size || 'base-size');
+    formData.append('size', newItem.size || 'Standard');
 
     try {
       const response = await fetch('http://localhost/POS/api/routes.php?request=add-menu-item', {
@@ -123,26 +118,12 @@
   async function updateItem() {
     if (!editItem) return;
 
-    // Validate size for Drinks and Pizza
-    if (['Drinks', 'Pizza'].includes(editItem.category) && !editItem.size) {
-        alertMessage = `Please select a size for ${editItem.category}`;
-        alertType = 'warning';
-        showAlert = true;
-        setTimeout(() => showAlert = false, 3000);
-        return;
-    }
-
     const formData = new FormData();
     formData.append('product_id', editItem.product_id.toString());
     formData.append('name', editItem.name);
     formData.append('price', editItem.price);
     formData.append('category', editItem.category);
-    
-    // Only send size if it's Drinks or Pizza category
-    const size = ['Drinks', 'Pizza'].includes(editItem.category) 
-        ? editItem.size 
-        : 'base-size';
-    formData.append('size', size);
+    formData.append('size', editItem.size || 'Standard');
     
     // Handle image upload if a new image was selected
     if (editItem.image instanceof File) {
@@ -195,13 +176,9 @@
   }
 
   function startEdit(item: Item) {
-    // Create a copy of the item with the correct size
     editItem = { 
         ...item,
-        // If category is Drinks or Pizza and size is 'base-size', set it to empty to force selection
-        size: ['Drinks', 'Pizza'].includes(item.category) && item.size === 'base-size' 
-            ? '' 
-            : item.size
+        size: item.size === 'base-size' ? 'Standard' : (item.size || 'Standard')
     };
     isEditModalOpen = true;
   }
@@ -222,13 +199,8 @@
   // Add this function to handle category changes
   function handleCategoryChange(newCategory: string) {
     editItem.category = newCategory;
-    // Reset size if changing to a non-size category
-    if (!['Drinks', 'Pizza'].includes(newCategory)) {
-      editItem.size = 'base-size';
-    } else if (!editItem.size || editItem.size === 'base-size') {
-      // If changing to Drinks/Pizza and size is not set or base-size, set it to empty to force selection
-      editItem.size = '';
-    }
+    // Set Standard as default size for all categories
+    editItem.size = 'Standard';
   }
 
   function openRecipeManager(product) {
@@ -288,18 +260,16 @@
               <option value={category}>{category}</option>
             {/each}
           </select>
-          {#if ['Drinks', 'Pizza'].includes(newItem.category)}
-            <select 
-              bind:value={newItem.size} 
-              class="p-2 border rounded-md w-full"
-              required
-            >
-              <option value="" disabled selected>Select size</option>
-              {#each sizeOptions[newItem.category] as size}
-                <option value={size}>{size}</option>
-              {/each}
-            </select>
-          {/if}
+          <select 
+            bind:value={newItem.size} 
+            class="p-2 border rounded-md w-full"
+            required
+          >
+            <option value="" disabled>Select size</option>
+            {#each sizeOptions[newItem.category] as size}
+              <option value={size} selected={size === 'Standard'}>{size}</option>
+            {/each}
+          </select>
         </div>
         <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md w-full">Add Item</button>
       </form>
@@ -357,18 +327,16 @@
                   <option value={category}>{category}</option>
                 {/each}
               </select>
-              {#if ['Drinks', 'Pizza'].includes(editItem.category)}
-                <select 
-                  bind:value={editItem.size} 
-                  class="p-2 border rounded-md"
-                  required
-                >
-                  <option value="" disabled>Select size</option>
-                  {#each sizeOptions[editItem.category] as size}
-                    <option value={size}>{size}</option>
-                  {/each}
-                </select>
-              {/if}
+              <select 
+                bind:value={editItem.size} 
+                class="p-2 border rounded-md"
+                required
+              >
+                <option value="" disabled>Select size</option>
+                {#each sizeOptions[editItem.category] as size}
+                  <option value={size} selected={size === 'Standard'}>{size}</option>
+                {/each}
+              </select>
             </div>
             <div class="flex gap-2">
               <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md flex-1">Update</button>

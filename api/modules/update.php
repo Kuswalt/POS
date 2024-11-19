@@ -38,49 +38,38 @@ class Update {
     public function updateMenuItem($data) {
         global $conn;
         
-        // Get the original product data
-        $stmt = $conn->prepare("SELECT category, size FROM product WHERE product_id = :product_id");
-        $stmt->bindParam(':product_id', $data['product_id']);
-        $stmt->execute();
-        $originalProduct = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Determine the size value
-        $newSize = isset($data['size']) && !empty($data['size']) ? $data['size'] : 'base-size';
-        if (in_array($data['category'], ['Drinks', 'Pizza']) && empty($data['size'])) {
-            return [
-                "status" => false,
-                "message" => "Size is required for {$data['category']}"
-            ];
-        }
-        
-        $sql = "UPDATE product SET 
-                name = :name,
-                price = :price,
-                category = :category,
-                size = :size";
-        
-        if (isset($data['image']) && !empty($data['image'])) {
-            $sql .= ", image = :image";
-        }
-        
-        $sql .= " WHERE product_id = :product_id";
-        
-        $stmt = $conn->prepare($sql);
-        
-        $params = [
-            ':name' => $data['name'],
-            ':price' => $data['price'],
-            ':category' => $data['category'],
-            ':size' => $newSize,
-            ':product_id' => $data['product_id']
-        ];
-        
-        if (isset($data['image']) && !empty($data['image'])) {
-            $params[':image'] = $data['image'];
-        }
-        
         try {
+            $sql = "UPDATE product SET 
+                    name = :name,
+                    price = :price,
+                    category = :category,
+                    size = :size";
+            
+            if (isset($data['image']) && !empty($data['image'])) {
+                $sql .= ", image = :image";
+            }
+            
+            $sql .= " WHERE product_id = :product_id";
+            
+            $stmt = $conn->prepare($sql);
+            
+            // Always use the provided size or 'Standard' as default
+            $size = isset($data['size']) && !empty($data['size']) ? $data['size'] : 'Standard';
+            
+            $params = [
+                ':name' => $data['name'],
+                ':price' => $data['price'],
+                ':category' => $data['category'],
+                ':size' => $size,
+                ':product_id' => $data['product_id']
+            ];
+            
+            if (isset($data['image']) && !empty($data['image'])) {
+                $params[':image'] = $data['image'];
+            }
+            
             $stmt->execute($params);
+            
             return [
                 "status" => true,
                 "message" => "Menu item updated successfully"
