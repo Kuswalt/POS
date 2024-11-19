@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 18, 2024 at 05:23 PM
+-- Generation Time: Nov 19, 2024 at 06:18 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.1.25
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `db_cafe`
+-- Database: `cafe_db`
 --
 
 -- --------------------------------------------------------
@@ -32,29 +32,6 @@ CREATE TABLE `cart` (
   `product_id` int(11) NOT NULL,
   `quantity` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `cart`
---
-
-INSERT INTO `cart` (`user_id`, `product_id`, `quantity`) VALUES
-(1, 46, 1),
-(1, 46, 1),
-(1, 37, 1),
-(1, 49, 1),
-(1, 49, 1),
-(4, 49, 1),
-(4, 58, 1),
-(4, 58, 1),
-(4, 58, 1),
-(4, 60, 1),
-(4, 60, 1),
-(4, 64, 1),
-(4, 56, 1),
-(1, 49, 1),
-(1, 49, 1),
-(1, 49, 1),
-(1, 65, 1);
 
 -- --------------------------------------------------------
 
@@ -78,7 +55,15 @@ INSERT INTO `customer` (`customer_id`, `Name`, `total_amount`) VALUES
 (24, 'HIZOLA, JOHN CARLO A.', 2000),
 (25, 'test1', 400),
 (26, 'test1', 400),
-(27, 'test1', 400);
+(27, 'test1', 400),
+(29, 'Xyrell Dave', 20),
+(30, 'Xyrell Dave', 20),
+(31, 'Xyrell Dave', 20),
+(32, 'Xyrell Dave', 20),
+(33, 'Lauraa Kate Roa', 200),
+(34, 'Lauraa Kate Roa', 10000),
+(35, 'Lauraa Kate Roa', 50),
+(36, 'John Carlo Arceo Hizola', 600);
 
 -- --------------------------------------------------------
 
@@ -102,24 +87,24 @@ CREATE TABLE `inventory` (
 INSERT INTO `inventory` (`inventory_id`, `stock_quantity`, `last_updated`, `user_id`, `item_name`, `unit_of_measure`) VALUES
 (15, 100, '2024-11-18 18:49:51.000000', 0, 'ice', 'pieces'),
 (18, 6, '2024-11-17 15:15:49.000000', 0, 'flour', 'pieces'),
-(19, 100, '2024-11-18 18:48:25.000000', 0, 'Burger Buns', 'pieces'),
-(20, 100, '2024-11-18 22:59:42.000000', 0, 'Beef Patty', 'pieces'),
-(21, 200, '2024-11-18 18:48:25.000000', 0, 'Cheese Slices', 'pieces'),
-(22, 50, '2024-11-18 18:48:25.000000', 0, 'Potatoes', 'kilograms'),
-(23, 30, '2024-11-18 18:48:25.000000', 0, 'Lettuce', 'pieces'),
-(24, 50, '2024-11-18 18:48:25.000000', 0, 'Tomatoes', 'pieces'),
-(25, 20, '2024-11-18 18:48:25.000000', 0, 'Mayo', 'liters'),
-(26, 20, '2024-11-18 18:48:25.000000', 0, 'Ketchup', 'liters'),
+(19, 97, '2024-11-19 13:13:12.000000', 0, 'Burger Buns', 'pieces'),
+(20, 198, '2024-11-19 13:13:12.000000', 0, 'Beef Patty', 'pieces'),
+(21, 198, '2024-11-19 13:13:12.000000', 0, 'Cheese Slices', 'pieces'),
+(22, 15, '2024-11-19 13:13:12.000000', 0, 'Potatoes', 'kilograms'),
+(23, 30, '2024-11-19 13:13:12.000000', 0, 'Lettuce', 'pieces'),
+(24, 50, '2024-11-19 13:13:12.000000', 0, 'Tomatoes', 'pieces'),
+(25, 20, '2024-11-19 13:13:12.000000', 0, 'Mayo', 'liters'),
+(26, 20, '2024-11-19 13:13:12.000000', 0, 'Ketchup', 'liters'),
 (27, 100, '2024-11-18 18:48:25.000000', 0, 'Pizza Dough', 'pieces'),
 (28, 30, '2024-11-18 18:48:25.000000', 0, 'Tomato Sauce', 'liters'),
 (29, 40, '2024-11-18 18:48:25.000000', 0, 'Mozzarella', 'kilograms'),
 (30, 30, '2024-11-18 18:48:25.000000', 0, 'Pepperoni', 'kilograms'),
 (31, 20, '2024-11-18 18:48:25.000000', 0, 'Bell Peppers', 'kilograms'),
 (32, 20, '2024-11-18 18:48:25.000000', 0, 'Mushrooms', 'kilograms'),
-(33, 31, '2024-11-18 23:30:41.000000', 0, 'Chocolate', 'kilograms'),
-(34, 40, '2024-11-18 18:48:25.000000', 0, 'Cream Cheese', 'kilograms'),
-(35, 30, '2024-11-18 18:48:25.000000', 0, 'Whipped Cream', 'liters'),
-(36, 20, '2024-11-18 18:48:25.000000', 0, 'Graham Crackers', 'kilograms'),
+(33, 21, '2024-11-19 13:13:12.000000', 0, 'Chocolate', 'kilograms'),
+(34, 24, '2024-11-19 13:13:12.000000', 0, 'Cream Cheese', 'kilograms'),
+(35, 20, '2024-11-19 13:13:12.000000', 0, 'Whipped Cream', 'liters'),
+(36, 10, '2024-11-19 13:13:12.000000', 0, 'Graham Crackers', 'kilograms'),
 (37, 30, '2024-11-18 18:48:25.000000', 0, 'Butter', 'kilograms'),
 (38, 50, '2024-11-18 18:48:25.000000', 0, 'Milk', 'liters'),
 (39, 50, '2024-11-18 18:48:25.000000', 0, 'Sugar', 'kilograms'),
@@ -129,7 +114,8 @@ INSERT INTO `inventory` (`inventory_id`, `stock_quantity`, `last_updated`, `user
 (43, 30, '2024-11-18 18:48:25.000000', 0, 'Chocolate Powder', 'kilograms'),
 (44, 20, '2024-11-18 18:48:25.000000', 0, 'Vanilla Syrup', 'liters'),
 (45, 20, '2024-11-18 18:48:25.000000', 0, 'Caramel Syrup', 'liters'),
-(47, 5, '2024-11-18 23:43:37.000000', 0, 'Cooking Oil', 'liters');
+(47, 15, '2024-11-19 09:36:43.000000', 0, 'Cooking Oil', 'liters'),
+(49, 10, '2024-11-19 08:59:24.000000', 0, 'Chocolate Syrup', 'liters');
 
 --
 -- Triggers `inventory`
@@ -167,7 +153,11 @@ INSERT INTO `order` (`order_id`, `customer_id`, `order_date`, `total_amount`, `u
 (19, 23, '2024-11-18 10:18:03.000000', 184, 1, 'paid'),
 (21, 25, '2024-11-18 17:29:08.000000', 246, 1, 'paid'),
 (22, 26, '2024-11-18 18:01:09.000000', 240, 1, 'paid'),
-(23, 27, '2024-11-18 18:07:10.000000', 243, 1, 'paid');
+(23, 27, '2024-11-18 18:07:10.000000', 243, 1, 'paid'),
+(28, 32, '2024-11-19 08:48:35.000000', 15, 1, 'paid'),
+(29, 33, '2024-11-19 09:22:46.000000', 179, 1, 'paid'),
+(30, 34, '2024-11-19 09:23:40.000000', 8950, 1, 'paid'),
+(31, 36, '2024-11-19 13:13:12.000000', 587, 1, 'paid');
 
 -- --------------------------------------------------------
 
@@ -182,6 +172,17 @@ CREATE TABLE `order_item` (
   `quantity` int(11) NOT NULL,
   `price` float NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `order_item`
+--
+
+INSERT INTO `order_item` (`order_item_id`, `order_id`, `product_id`, `quantity`, `price`) VALUES
+(41, 28, 65, 1, 15),
+(42, 29, 49, 1, 179),
+(43, 30, 49, 50, 179),
+(44, 31, 59, 1, 229),
+(45, 31, 51, 2, 179);
 
 -- --------------------------------------------------------
 
@@ -203,33 +204,34 @@ CREATE TABLE `product` (
 --
 
 INSERT INTO `product` (`product_id`, `name`, `price`, `category`, `image`, `size`) VALUES
-(36, 'Pearl Black', 159, 'Drinks', 0x313733313932373938355f6c6f676f2e706e67, '160 oz'),
-(37, 'Pearl Black', 169, 'Drinks', 0x313733313932373939365f6c6f676f2e706e67, '220 oz'),
-(38, 'Okinawa', 165, 'Drinks', 0x313733313932373937315f6c6f676f2e706e67, '160 oz'),
-(39, 'Okinawa', 175, 'Drinks', 0x313733313932373936355f6c6f676f2e706e67, '220 oz'),
-(40, 'Wintermelon', 165, 'Drinks', 0x313733313932383032325f6c6f676f2e706e67, '160 oz'),
-(41, 'Wintermelon', 175, 'Drinks', 0x313733313932383033305f6c6f676f2e706e67, '220 oz'),
-(42, 'Hokkaido', 165, 'Drinks', 0x313733313932373934365f6c6f676f2e706e67, '160 oz'),
-(43, 'Hokkaido', 175, 'Drinks', 0x313733313932373935305f6c6f676f2e706e67, '220 oz'),
-(44, 'Strawberry', 165, 'Drinks', 0x313733313932383030365f6c6f676f2e706e67, '160 oz'),
-(45, 'Strawberry', 175, 'Drinks', 0x313733313932383031335f6c6f676f2e706e67, '220 oz'),
-(46, 'Matcha', 165, 'Drinks', 0x313733313932373935355f6c6f676f2e706e67, '160 oz'),
-(47, 'Matcha', 175, 'Drinks', 0x313733313932383036335f6c6f676f2e706e67, '220 oz'),
-(48, 'Dark Choco', 179, 'Chocolate Series', 0x313733313932373632315f6c6f676f2e706e67, 'base-size'),
-(49, 'Chocolate Cheesecake', 179, 'Chocolate Series', 0x313733313932373631315f6c6f676f2e706e67, 'base-size'),
-(50, 'Hershey Cheesecake', 179, 'Chocolate Series', 0x313733313932373633395f6c6f676f2e706e67, 'base-size'),
-(51, 'Blueberry Cheesecake', 179, 'Chocolate Series', 0x313733313934303134365f6c6f676f2e706e67, 'base-size'),
-(52, 'Strawberry Cheesecake', 179, 'Chocolate Series', 0x313733313932373737305f6c6f676f2e706e67, 'base-size'),
-(53, 'Matcha Cheesecake', 179, 'Chocolate Series', 0x313733313932373736305f6c6f676f2e706e67, 'base-size'),
-(54, 'Pepperoni Pizza', 399, 'Pizza', 0x313733313932383035335f6c6f676f2e706e67, '10\"'),
-(55, 'Pepperoni Pizza', 499, 'Pizza', 0x313733313932373931305f6c6f676f2e706e67, '12\"'),
-(56, 'Hawaiian Pizza', 399, 'Pizza', 0x313733313932373835325f6c6f676f2e706e67, '10\"'),
-(58, 'Classic Burger', 199, 'Burger & Fries', 0x313733313932373631365f6c6f676f2e706e67, 'base-size'),
-(59, 'Cheese Burger', 229, 'Burger & Fries', 0x313733313932373630365f6c6f676f2e706e67, 'base-size'),
-(60, 'Double Cheese Burger', 299, 'Burger & Fries', 0x313733313932373632365f6c6f676f2e706e67, 'base-size'),
-(63, 'nachos', 120, 'Nachos', 0x313733313932383737305f6c6f676f2e706e67, 'base-size'),
-(64, 'Hawaiian pizza', 499, 'Pizza', 0x313733313932383830365f6c6f676f2e706e67, '12\"'),
-(65, 'Fries', 15, 'Burger & Fries', 0x313733313934343538305f6c6f676f2e706e67, 'base-size');
+(36, 'Pearl Black', 159, 'Drinks', 0x313733313932373938355f6c6f676f2e706e67, 'Small'),
+(37, 'Pearl Black', 169, 'Drinks', 0x313733313932373939365f6c6f676f2e706e67, 'Large'),
+(38, 'Okinawa', 165, 'Drinks', 0x313733313932373937315f6c6f676f2e706e67, 'Small'),
+(39, 'Okinawa', 175, 'Drinks', 0x313733313932373936355f6c6f676f2e706e67, 'Large'),
+(40, 'Wintermelon', 165, 'Drinks', 0x313733313932383032325f6c6f676f2e706e67, 'Small'),
+(41, 'Wintermelon', 175, 'Drinks', 0x313733313932383033305f6c6f676f2e706e67, 'Large'),
+(42, 'Hokkaido', 165, 'Drinks', 0x313733313932373934365f6c6f676f2e706e67, 'Small'),
+(43, 'Hokkaido', 175, 'Drinks', 0x313733313932373935305f6c6f676f2e706e67, 'Large'),
+(44, 'Strawberry', 165, 'Drinks', 0x313733313932383030365f6c6f676f2e706e67, 'Small'),
+(45, 'Strawberry', 175, 'Drinks', 0x313733313932383031335f6c6f676f2e706e67, 'Large'),
+(46, 'Matcha', 165, 'Drinks', 0x313733313932373935355f6c6f676f2e706e67, 'Small'),
+(47, 'Matcha', 175, 'Drinks', 0x313733313932383036335f6c6f676f2e706e67, 'Large'),
+(48, 'Dark Choco', 179, 'Chocolate Series', 0x313733313932373632315f6c6f676f2e706e67, 'Standard'),
+(49, 'Chocolate Cheesecake', 179, 'Chocolate Series', 0x313733313932373631315f6c6f676f2e706e67, 'Standard'),
+(50, 'Hershey Cheesecake', 179, 'Chocolate Series', 0x313733313932373633395f6c6f676f2e706e67, 'Standard'),
+(51, 'Blueberry Cheesecake', 179, 'Chocolate Series', 0x313733313934303134365f6c6f676f2e706e67, 'Standard'),
+(52, 'Strawberry Cheesecake', 179, 'Chocolate Series', 0x313733313932373737305f6c6f676f2e706e67, 'Standard'),
+(53, 'Matcha Cheesecake', 179, 'Chocolate Series', 0x313733313932373736305f6c6f676f2e706e67, 'Standard'),
+(54, 'Pepperoni Pizza', 399, 'Pizza', 0x313733313932383035335f6c6f676f2e706e67, 'Small'),
+(55, 'Pepperoni Pizza', 499, 'Pizza', 0x313733313932373931305f6c6f676f2e706e67, 'Large'),
+(56, 'Hawaiian Pizza', 399, 'Pizza', 0x313733313932373835325f6c6f676f2e706e67, 'Small'),
+(58, 'Classic Burger', 199, 'Burger & Fries', 0x313733313932373631365f6c6f676f2e706e67, 'Standard'),
+(59, 'Cheese Burger', 229, 'Burger & Fries', 0x313733313932373630365f6c6f676f2e706e67, 'Standard'),
+(60, 'Double Cheese Burger', 299, 'Burger & Fries', 0x313733313932373632365f6c6f676f2e706e67, 'Standard'),
+(63, 'nachos', 120, 'Nachos', 0x313733313932383737305f6c6f676f2e706e67, 'Standard'),
+(64, 'Hawaiian pizza', 499, 'Pizza', 0x313733313932383830365f6c6f676f2e706e67, 'Large'),
+(65, 'Fries', 15, 'Burger & Fries', 0x313733313934343538305f6c6f676f2e706e67, 'Standard'),
+(67, 'Pepperoni Pizza', 454, 'Pizza', 0x313733313939323936365f6c6f676f2e706e67, 'Standard');
 
 -- --------------------------------------------------------
 
@@ -255,7 +257,7 @@ INSERT INTO `product_ingredients` (`product_ingredient_id`, `product_id`, `inven
 (6, 59, 20, 'Beef Patty', 1, ''),
 (7, 60, 20, 'Beef Patty', 1, ''),
 (8, 58, 19, 'Burger Buns', 1, ''),
-(9, 59, 19, 'Burger Buns', 1, ''),
+(9, 59, 19, 'Burger Buns', 2, 'pieces'),
 (10, 60, 19, 'Burger Buns', 1, ''),
 (11, 58, 21, 'Cheese Slices', 1, ''),
 (12, 59, 21, 'Cheese Slices', 1, ''),
@@ -371,8 +373,8 @@ INSERT INTO `product_ingredients` (`product_ingredient_id`, `product_id`, `inven
 (153, 60, 25, 'Mayo', 0.03, ''),
 (154, 60, 22, 'Potatoes', 0.2, ''),
 (155, 60, 24, 'Tomatoes', 0.2, ''),
-(163, 65, 22, 'Potatoes', 0.05, 'kilograms'),
-(164, 65, 47, 'Cooking Oil', 0.2, 'liters');
+(164, 65, 47, 'Cooking Oil', 5, 'liters'),
+(165, 65, 22, 'Potatoes', 5, 'kilograms');
 
 -- --------------------------------------------------------
 
@@ -387,6 +389,20 @@ CREATE TABLE `receipt` (
   `total_amount` float NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `receipt`
+--
+
+INSERT INTO `receipt` (`receipt_id`, `order_id`, `generated_at`, `total_amount`) VALUES
+(19, 28, '2024-11-19 08:48:35.000000', 15),
+(20, 28, '2024-11-19 08:48:36.000000', 15),
+(21, 29, '2024-11-19 09:22:46.000000', 179),
+(22, 29, '2024-11-19 09:22:46.000000', 179),
+(23, 30, '2024-11-19 09:23:40.000000', 8950),
+(24, 30, '2024-11-19 09:23:40.000000', 8950),
+(25, 31, '2024-11-19 13:13:12.000000', 587),
+(26, 31, '2024-11-19 13:13:12.000000', 587);
+
 -- --------------------------------------------------------
 
 --
@@ -400,6 +416,16 @@ CREATE TABLE `sales` (
   `sales_date` datetime(6) NOT NULL,
   `user_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `sales`
+--
+
+INSERT INTO `sales` (`sale_id`, `order_id`, `total_sales`, `sales_date`, `user_id`) VALUES
+(17, 28, 15, '2024-11-19 08:48:36.000000', 1),
+(18, 29, 179, '2024-11-19 09:22:46.000000', 1),
+(19, 30, 8950, '2024-11-19 09:23:40.000000', 1),
+(20, 31, 587, '2024-11-19 13:13:12.000000', 1);
 
 -- --------------------------------------------------------
 
@@ -508,49 +534,49 @@ ALTER TABLE `user_acc`
 -- AUTO_INCREMENT for table `customer`
 --
 ALTER TABLE `customer`
-  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- AUTO_INCREMENT for table `inventory`
 --
 ALTER TABLE `inventory`
-  MODIFY `inventory_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
+  MODIFY `inventory_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT for table `order`
 --
 ALTER TABLE `order`
-  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `order_item`
 --
 ALTER TABLE `order_item`
-  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
+  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
 -- AUTO_INCREMENT for table `product`
 --
 ALTER TABLE `product`
-  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=66;
+  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
 -- AUTO_INCREMENT for table `product_ingredients`
 --
 ALTER TABLE `product_ingredients`
-  MODIFY `product_ingredient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=165;
+  MODIFY `product_ingredient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=166;
 
 --
 -- AUTO_INCREMENT for table `receipt`
 --
 ALTER TABLE `receipt`
-  MODIFY `receipt_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `receipt_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `sales`
 --
 ALTER TABLE `sales`
-  MODIFY `sale_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `sale_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `user_acc`
