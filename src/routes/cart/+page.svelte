@@ -37,6 +37,37 @@
   let showReceiptModal = false;
   let receiptData: ReceiptData | null = null;
 
+  // Add new interface for ingredient availability
+  interface IngredientAvailability {
+    product_id: number;
+    max_possible_quantity: number;
+  }
+
+  // Add new state variable
+  let productAvailability: Record<number, number> = {};
+
+  // Function to check ingredient availability
+  async function checkIngredientAvailability(productId: number, requestedQuantity: number): Promise<boolean> {
+    try {
+      const response = await fetch(`http://localhost/POS/api/routes.php?request=check-ingredient-availability&product_id=${productId}&quantity=${requestedQuantity}`, {
+        method: 'GET'
+      });
+
+      const result = await response.json();
+      console.log('Availability check result:', result);
+
+      if (result.status) {
+        productAvailability[productId] = result.max_possible_quantity;
+        productAvailability = { ...productAvailability }; // Force Svelte reactivity
+        return requestedQuantity <= result.max_possible_quantity;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking ingredient availability:', error);
+      return false;
+    }
+  }
+
   async function saveCustomer() {
     if (!customerName.trim()) {
       alert('Please enter customer name');
@@ -146,6 +177,22 @@
             }
 
             if (receiptResult.status) {
+              // Clear cart from database
+              const clearCartResponse = await fetch('http://localhost/POS/api/routes.php?request=clear-cart', {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  user_id: userId
+                })
+              });
+
+              const clearCartResult = await clearCartResponse.json();
+              if (!clearCartResult.status) {
+                console.error('Failed to clear cart:', clearCartResult.message);
+              }
+
               // Prepare receipt data
               receiptData = {
                 receipt_id: receiptResult.receipt_id,
@@ -301,8 +348,26 @@
           <div class="quantity-controls">
             <button on:click={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
             <span>{item.quantity}</span>
-            <button on:click={() => onUpdateQuantity(item.id, item.quantity + 1)}>+</button>
+            <button 
+              on:click={async () => {
+                console.log('Current quantity:', item.quantity); // Debug log
+                console.log('Max quantity:', productAvailability[item.id]); // Debug log
+                
+                const canIncrease = await checkIngredientAvailability(item.id, item.quantity + 1);
+                console.log('Can increase?', canIncrease); // Debug log
+                
+                if (canIncrease) {
+                  onUpdateQuantity(item.id, item.quantity + 1);
+                } else {
+                  alert(`Cannot add more ${item.name}. Limited by ingredient availability.`);
+                }
+              }}
+              disabled={productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
+            >+</button>
           </div>
+          {#if productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
+            <p class="text-red-500 text-sm">Maximum available quantity reached ({productAvailability[item.id]})</p>
+          {/if}
         </div>
         <button class="remove-btn" on:click={() => onRemoveFromCart(item.id)}>×</button>
       </div>
@@ -643,5 +708,11 @@
   .save-customer-btn:disabled {
     background: #9ca3af;
     cursor: not-allowed;
+  }
+
+  .quantity-controls button:disabled {
+    background-color: #e5e7eb;
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 </style>

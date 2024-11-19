@@ -98,6 +98,11 @@ try {
                     echo json_encode($post->addProductIngredient($data));
                     break;
                     
+                case 'add-item-stock':
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    echo json_encode($post->addItemStock($data));
+                    break;
+                    
                 default:
                     // For other POST requests, use JSON
                     $data = json_decode(file_get_contents("php://input"), true);
@@ -107,9 +112,6 @@ try {
                             break;
                         case 'login':
                             echo json_encode($post->loginUser($data));
-                            break;
-                        case 'add-item-stock':
-                            echo json_encode($post->addItemStock($data));
                             break;
                         case 'add-to-cart':
                             echo json_encode($post->addToCart($data));
@@ -154,7 +156,7 @@ try {
                         echo json_encode(["status" => false, "message" => "Product ID is required"]);
                         exit;
                     }
-                    echo json_encode($get->checkIngredientAvailability($_GET['product_id']));
+                    echo json_encode($get->checkIngredientAvailability($_GET['product_id'], 1));
                     break;
                 case 'get-products-using-ingredient':
                     $inventory_id = $_GET['inventory_id'] ?? null;
@@ -167,6 +169,38 @@ try {
                             "message" => "Inventory ID is required"
                         ]);
                     }
+                    break;
+                case 'get-cart-item':
+                    if (!isset($_GET['product_id']) || !isset($_GET['user_id'])) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Product ID and User ID are required"
+                        ]);
+                        break;
+                    }
+                    echo json_encode($get->getCartItem($_GET['product_id'], $_GET['user_id']));
+                    break;
+                case 'get-cart-items':
+                    if (!isset($_GET['user_id'])) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "User ID is required"
+                        ]);
+                        break;
+                    }
+                    echo json_encode($get->getCartItems($_GET['user_id']));
+                    break;
+                case 'check-ingredient-availability':
+                    if (!isset($_GET['product_id']) || !isset($_GET['quantity'])) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Product ID and quantity are required"
+                        ]);
+                        break;
+                    }
+                    $product_id = $_GET['product_id'];
+                    $quantity = $_GET['quantity'];
+                    echo json_encode($get->checkIngredientAvailability($product_id, $quantity));
                     break;
                 default:
                     echo json_encode(["error" => "Invalid request"]);
@@ -204,6 +238,10 @@ try {
                     $data = json_decode(file_get_contents('php://input'), true);
                     echo json_encode($update->updateProductIngredient($data));
                     break;
+                case 'update-item-stock':
+                    $data = json_decode(file_get_contents('php://input'), true);
+                    echo json_encode($update->updateItemStock($data));
+                    break;
                 default:
                     $data = json_decode(file_get_contents("php://input"), true);
                     switch ($request[0]) {
@@ -236,6 +274,26 @@ try {
                 case 'delete-product-ingredient':
                     $data = json_decode(file_get_contents('php://input'), true);
                     echo json_encode($delete->deleteProductIngredient($data));
+                    break;
+                case 'clear-cart':
+                    if (!isset($data['user_id'])) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "User ID is required"
+                        ]);
+                        break;
+                    }
+                    echo json_encode($delete->clearCart($data['user_id']));
+                    break;
+                case 'remove-from-cart':
+                    if (!isset($data['product_id']) || !isset($data['user_id'])) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Product ID and User ID are required"
+                        ]);
+                        break;
+                    }
+                    echo json_encode($delete->removeFromCart($data['product_id'], $data['user_id']));
                     break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);

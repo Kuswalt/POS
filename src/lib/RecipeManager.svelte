@@ -132,7 +132,7 @@
         body: JSON.stringify({
           product_ingredient_id: ingredient.product_ingredient_id,
           quantity_needed: editQuantity,
-          unit_of_measure: ingredient.unit_of_measure
+          unit_of_measure: editUnitOfMeasure
         })
       });
   
@@ -153,6 +153,8 @@
     type UnitOfMeasure = 'pieces' | 'grams' | 'kilograms' | 'milliliters' | 'liters' | 'cups' | 'tablespoons' | 'teaspoons';
   
     const unitOptions: UnitOfMeasure[] = ['pieces', 'grams', 'kilograms', 'milliliters', 'liters', 'cups', 'tablespoons', 'teaspoons'];
+  
+    let editUnitOfMeasure: UnitOfMeasure = 'pieces';
   </script>
   
   <div class="recipe-manager">
@@ -190,11 +192,14 @@
               min="0"
               step="0.01"
             />
-            {#if selectedIngredient}
-              <span class="p-2 bg-gray-100 rounded-md whitespace-nowrap">
-                {selectedIngredient.unit_of_measure}
-              </span>
-            {/if}
+            <select 
+              bind:value={newIngredient.unit_of_measure}
+              class="p-2 border rounded-md"
+            >
+              {#each unitOptions as unit}
+                <option value={unit}>{unit}</option>
+              {/each}
+            </select>
             <button 
               on:click={addIngredient}
               class="bg-green-500 text-white px-4 py-2 rounded-md whitespace-nowrap"
@@ -248,6 +253,14 @@
                             min="0"
                             step="0.01"
                           />
+                          <select 
+                            bind:value={editUnitOfMeasure}
+                            class="p-2 border rounded"
+                          >
+                            {#each unitOptions as unit}
+                              <option value={unit}>{unit}</option>
+                            {/each}
+                          </select>
                           <button 
                             on:click={() => updateIngredientQuantity(ingredient)}
                             class="text-green-500 hover:text-green-700"
@@ -272,6 +285,7 @@
                         on:click={() => {
                           editingIngredient = ingredient.product_ingredient_id;
                           editQuantity = ingredient.quantity_needed;
+                          editUnitOfMeasure = ingredient.unit_of_measure as UnitOfMeasure;
                         }}
                         class="text-blue-500 hover:text-blue-700"
                       >

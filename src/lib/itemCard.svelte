@@ -5,16 +5,48 @@
     image: string;
     price: string;
     category: string;
-    is_available: boolean;
+    is_available?: boolean;
   };
+
+  let isAvailable = true;
+  
+  async function checkAvailability() {
+    try {
+      const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${product.product_id}`);
+      const result = await response.json();
+      
+      if (!result.status || !result.data || result.data.length === 0) {
+        isAvailable = false;
+        return;
+      }
+
+      // Check if any ingredient is insufficient for the requested quantity
+      for (const ingredient of result.data) {
+        const requiredQuantity = ingredient.quantity_needed;
+        if (ingredient.stock_quantity < requiredQuantity) {
+          isAvailable = false;
+          return;
+        }
+      }
+      
+      isAvailable = true;
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      isAvailable = false;
+    }
+  }
+
+  $: if (product.product_id) {
+    checkAvailability();
+  }
 </script>
 
-<div class="item-card {!product.is_available ? 'unavailable' : ''}">
+<div class="item-card {!isAvailable ? 'unavailable' : ''}">
   <img src={product.image ? `uploads/${product.image}` : 'placeholder.jpg'} alt={product.name} />
   <div class="item-details">
     <h3>{product.name}</h3>
     <p class="price">₱{product.price}</p>
-    {#if !product.is_available}
+    {#if !isAvailable}
       <div class="unavailable-badge">Unavailable</div>
     {/if}
   </div>
@@ -40,38 +72,6 @@
   .item-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-  }
-
-  .image-container {
-    width: 100%;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 0.75rem;
-  }
-
-  .card-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  .card-content {
-    width: 100%;
-  }
-
-  .card-title {
-    font-size: 0.9rem;
-    font-weight: 500;
-    margin-bottom: 0.25rem;
-    color: #333;
-  }
-
-  .card-price {
-    color: #333;
-    font-weight: bold;
-    font-size: 0.9rem;
   }
 
   .unavailable {

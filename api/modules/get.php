@@ -159,12 +159,12 @@ class Get {
             ];
         }
     }
-    public function checkIngredientAvailability($product_id) {
+    public function checkIngredientAvailability($product_id, $requested_quantity) {
         global $conn;
         
         try {
-            $sql = "SELECT i.item_name, i.stock_quantity, pi.quantity_needed,
-                    (i.stock_quantity < pi.quantity_needed) as is_insufficient
+            $sql = "SELECT i.item_name, i.stock_quantity, i.unit_of_measure as stock_unit,
+                    pi.quantity_needed, pi.unit_of_measure as recipe_unit
                     FROM inventory i 
                     JOIN product_ingredients pi ON i.inventory_id = pi.inventory_id 
                     WHERE pi.product_id = :product_id";
@@ -174,29 +174,82 @@ class Get {
             $stmt->execute();
             
             $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $max_possible_quantity = PHP_FLOAT_MAX;
             
             foreach ($ingredients as $ingredient) {
-                if ($ingredient['is_insufficient']) {
-                    return [
-                        "status" => false,
-                        "available" => false,
-                        "message" => "Insufficient " . $ingredient['item_name']
-                    ];
-                }
+                $convertedQuantity = $this->convertUnits(
+                    $ingredient['quantity_needed'],
+                    $ingredient['recipe_unit'],
+                    $ingredient['stock_unit']
+                );
+                
+                // Calculate how many products can be made with this ingredient
+                $possible_quantity = floor($ingredient['stock_quantity'] / $convertedQuantity);
+                $max_possible_quantity = min($max_possible_quantity, $possible_quantity);
             }
             
             return [
                 "status" => true,
-                "available" => true,
-                "message" => "Product available"
+                "max_possible_quantity" => $max_possible_quantity
             ];
             
         } catch (PDOException $e) {
             return [
                 "status" => false,
-                "message" => "Error checking availability: " . $e->getMessage()
+                "message" => "Database error: " . $e->getMessage()
             ];
         }
+    }
+    private function convertUnits($value, $fromUnit, $toUnit) {
+        if ($fromUnit === $toUnit) return $value;
+
+        $conversions = [
+            'mass' => [
+                'grams' => 1,
+                'kilograms' => 1000,
+                'pounds' => 453.592,
+                'ounces' => 28.3495
+            ],
+            'volume' => [
+                'milliliters' => 1,
+                'liters' => 1000,
+                'cups' => 236.588,
+                'tablespoons' => 14.7868,
+                'teaspoons' => 4.92892
+            ]
+        ];
+
+        $unitTypes = [
+            'grams' => 'mass',
+            'kilograms' => 'mass',
+            'pounds' => 'mass',
+            'ounces' => 'mass',
+            'milliliters' => 'volume',
+            'liters' => 'volume',
+            'cups' => 'volume',
+            'tablespoons' => 'volume',
+            'teaspoons' => 'volume'
+        ];
+
+        // If units are pieces, no conversion needed
+        if ($fromUnit === 'pieces' || $toUnit === 'pieces') {
+            return $value;
+        }
+
+        // Get unit types
+        $fromType = $unitTypes[$fromUnit] ?? null;
+        $toType = $unitTypes[$toUnit] ?? null;
+
+        // Check if units are of the same type
+        if ($fromType !== $toType) {
+            throw new Exception("Cannot convert between different types of units");
+        }
+
+        // Convert to base unit first
+        $baseValue = $value * $conversions[$fromType][$fromUnit];
+        
+        // Then convert to target unit
+        return $baseValue / $conversions[$fromType][$toUnit];
     }
     public function getProductIngredients($product_id) {
         global $conn;
@@ -249,6 +302,100 @@ class Get {
             return [
                 "status" => false,
                 "message" => "Error fetching products: " . $e->getMessage()
+            ];
+        }
+    }
+    public function getCartItem($productId, $userId) {
+        global $conn;
+        
+        try {
+            $sql = "SELECT quantity FROM cart WHERE product_id = :product_id AND user_id = :user_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $productId);
+            $stmt->bindParam(':user_id', $userId);
+            $stmt->execute();
+            
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return [
+                "status" => true,
+                "data" => $result
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => $e->getMessage()
+            ];
+        }
+    }
+    public function getCartItems($userId) {
+        global $conn;
+        
+        try {
+            $sql = "SELECT c.*, p.name, p.price, p.image, p.category 
+                    FROM cart c 
+                    JOIN product p ON c.product_id = p.product_id 
+                    WHERE c.user_id = :user_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':user_id', $userId);
+            $stmt->execute();
+            
+            return [
+                "status" => true,
+                "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => $e->getMessage()
+            ];
+        }
+    }
+    public function getMaxPossibleQuantity($product_id) {
+        global $conn;
+        
+        try {
+            $sql = "SELECT 
+                    i.stock_quantity / pi.quantity_needed as possible_quantity,
+                    i.unit_of_measure as stock_unit,
+                    pi.unit_of_measure as recipe_unit
+                    FROM product_ingredients pi
+                    JOIN inventory i ON i.inventory_id = pi.inventory_id
+                    WHERE pi.product_id = :product_id";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $product_id);
+            $stmt->execute();
+            
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if (empty($results)) {
+                return [
+                    "status" => false,
+                    "message" => "No recipe found for this product"
+                ];
+            }
+            
+            // Convert units and find minimum possible quantity
+            $min_quantity = PHP_FLOAT_MAX;
+            foreach ($results as $result) {
+                $converted_quantity = $this->convertUnits(
+                    $result['possible_quantity'],
+                    $result['stock_unit'],
+                    $result['recipe_unit']
+                );
+                $min_quantity = min($min_quantity, floor($converted_quantity));
+            }
+            
+            return [
+                "status" => true,
+                "max_possible_quantity" => $min_quantity
+            ];
+            
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Database error: " . $e->getMessage()
             ];
         }
     }

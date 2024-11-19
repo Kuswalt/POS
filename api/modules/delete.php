@@ -203,9 +203,8 @@ class Delete {
         try {
             $conn->beginTransaction();
             
-            $stmt = $conn->prepare("DELETE FROM product_ingredients WHERE product_id = :product_id AND inventory_id = :inventory_id");
-            $stmt->bindParam(':product_id', $data['product_id']);
-            $stmt->bindParam(':inventory_id', $data['inventory_id']);
+            $stmt = $conn->prepare("DELETE FROM product_ingredients WHERE product_ingredient_id = :product_ingredient_id");
+            $stmt->bindParam(':product_ingredient_id', $data['product_ingredient_id']);
             $stmt->execute();
             
             if ($stmt->rowCount() === 0) {
@@ -219,6 +218,47 @@ class Delete {
         } catch (PDOException $e) {
             $conn->rollBack();
             return ["status" => false, "message" => "Failed to delete product ingredient: " . $e->getMessage()];
+        }
+    }
+
+    public function clearCart($userId) {
+        global $conn;
+        try {
+            $sql = "DELETE FROM cart WHERE user_id = :user_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':user_id', $userId);
+            $stmt->execute();
+            
+            return [
+                "status" => true,
+                "message" => "Cart cleared successfully"
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => $e->getMessage()
+            ];
+        }
+    }
+
+    public function removeFromCart($productId, $userId) {
+        global $conn;
+        try {
+            $sql = "DELETE FROM cart WHERE product_id = :product_id AND user_id = :user_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':product_id', $productId);
+            $stmt->bindParam(':user_id', $userId);
+            $stmt->execute();
+            
+            return [
+                "status" => true,
+                "message" => "Item removed from cart successfully"
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => $e->getMessage()
+            ];
         }
     }
 }

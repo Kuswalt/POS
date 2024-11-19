@@ -54,6 +54,7 @@
       goto('/');
     }
     await fetchItems();
+    await fetchCartItems();
   });
 
   async function fetchItems() {
@@ -78,20 +79,44 @@
     }
   }
 
-  async function checkInventoryStock(product: Product): Promise<{ available: boolean; message: string }> {
+  async function fetchCartItems() {
+    try {
+      const response = await fetch(`http://localhost/POS/api/routes.php?request=get-cart-items&user_id=${userId}`);
+      const result = await response.json();
+      
+      if (result.status && Array.isArray(result.data)) {
+        cartItems = result.data.map((item: any) => ({
+          product_id: item.product_id,
+          id: item.product_id,
+          name: item.name,
+          price: Number(item.price),
+          quantity: Number(item.quantity),
+          image: item.image,
+          category: item.category
+        }));
+      } else {
+        cartItems = [];
+      }
+    } catch (error) {
+      console.error('Error fetching cart items:', error);
+      cartItems = [];
+    }
+  }
+
+  async function checkInventoryStock(product: Product, quantity: number = 1): Promise<{ available: boolean; message: string }> {
     try {
       const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${product.product_id}`);
       const result = await response.json();
       
-      // If no recipe found
       if (!result.status || !result.data || result.data.length === 0) {
         return { available: false, message: 'No Recipe Set' };
       }
 
-      // Check if any ingredient is insufficient
+      // Check if any ingredient is insufficient for the requested quantity
       for (const ingredient of result.data) {
-        if (ingredient.stock_quantity < ingredient.quantity_needed) {
-          return { available: false, message: 'Unavailable' };
+        const requiredQuantity = ingredient.quantity_needed * quantity;
+        if (ingredient.stock_quantity < requiredQuantity) {
+          return { available: false, message: 'Insufficient Stock' };
         }
       }
       
@@ -103,20 +128,26 @@
   }
 
   async function addToCart(product: Product) {
-    const hasStock = await checkInventoryStock(product);
-    if (!hasStock) return;
-    
-    const existingItem = cartItems.find(item => item.product_id === product.product_id);
-    
     try {
+        // First, get current cart quantity
+        const response = await fetch(`http://localhost/POS/api/routes.php?request=get-cart-item&product_id=${product.product_id}&user_id=${userId}`);
+        const cartResult = await response.json();
+        const currentQuantity = cartResult.status ? (cartResult.data?.quantity || 0) : 0;
+        
+        // Check stock for new total quantity
+        const stockCheck = await checkInventoryStock(product, currentQuantity + 1);
+        if (!stockCheck.available) {
+            alert(stockCheck.message);
+            return;
+        }
+        
         const data = {
             product_id: product.product_id,
             quantity: 1,
             user_id: userId
         };
-        console.log('Sending data:', data);
 
-        const response = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
+        const addResponse = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -124,35 +155,41 @@
             body: JSON.stringify(data)
         });
 
-        const result = await response.json();
-        console.log('Response:', result);
-        
+        const result = await addResponse.json();
         if (result.status) {
-            if (existingItem) {
-                cartItems = cartItems.map(item => 
-                    item.product_id === product.product_id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            } else {
-                const newItem = {
-                    ...product,
-                    id: product.product_id,
-                    quantity: 1
-                };
-                cartItems = [...cartItems, newItem];
-            }
+            await fetchCartItems();
         } else {
             alert(result.message);
         }
     } catch (error) {
-        console.error('Error adding item to cart:', error);
+        console.error('Error:', error);
         alert('Failed to add item to cart');
     }
   }
 
-  function removeFromCart(productId: number) {
-    cartItems = cartItems.filter(item => item.product_id !== productId);
+  async function removeFromCart(productId: number) {
+    try {
+        const response = await fetch('http://localhost/POS/api/routes.php?request=remove-from-cart', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                user_id: userId
+            })
+        });
+
+        const result = await response.json();
+        if (result.status) {
+            cartItems = cartItems.filter(item => item.product_id !== productId);
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error removing item from cart:', error);
+        alert('Failed to remove item from cart');
+    }
   }
 
   function updateQuantity(productId: number, newQuantity: number) {
@@ -202,8 +239,11 @@
   }
 
   async function handleSizeSelection(variant: Product) {
-    const hasStock = await checkInventoryStock(variant);
-    if (!hasStock) return;
+    const stockCheck = await checkInventoryStock(variant);
+    if (!stockCheck.available) {
+        alert(stockCheck.message);
+        return;
+    }
     
     showSizeModal = false;
     await addToCart(variant);
