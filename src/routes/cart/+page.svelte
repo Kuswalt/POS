@@ -336,42 +336,45 @@
   }
 </script>
 
-<div class="cart-section">
+<div class="cart-container">
   <h2 class="cart-title">Order Summary</h2>
-  <div class="cart-items">
-    {#each cartItems as item}
-      <div class="cart-item">
-        <img src={item.image ? `uploads/${item.image}` : 'placeholder.jpg'} alt={item.name} class="cart-item-image" />
-        <div class="cart-item-details">
-          <h3>{item.name}</h3>
-          <p>₱{item.price}</p>
-          <div class="quantity-controls">
-            <button on:click={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
-            <span>{item.quantity}</span>
-            <button 
-              on:click={async () => {
-                console.log('Current quantity:', item.quantity); // Debug log
-                console.log('Max quantity:', productAvailability[item.id]); // Debug log
-                
-                const canIncrease = await checkIngredientAvailability(item.id, item.quantity + 1);
-                console.log('Can increase?', canIncrease); // Debug log
-                
-                if (canIncrease) {
-                  onUpdateQuantity(item.id, item.quantity + 1);
-                } else {
-                  alert(`Cannot add more ${item.name}. Limited by ingredient availability.`);
-                }
-              }}
-              disabled={productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
-            >+</button>
+  
+  <div class="cart-items-container">
+    <div class="cart-items">
+      {#each cartItems as item}
+        <div class="cart-item">
+          <img src={item.image ? `uploads/${item.image}` : 'placeholder.jpg'} alt={item.name} class="cart-item-image" />
+          <div class="cart-item-details">
+            <h3>{item.name}</h3>
+            <p>₱{item.price}</p>
+            <div class="quantity-controls">
+              <button on:click={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
+              <span>{item.quantity}</span>
+              <button 
+                on:click={async () => {
+                  console.log('Current quantity:', item.quantity); // Debug log
+                  console.log('Max quantity:', productAvailability[item.id]); // Debug log
+                  
+                  const canIncrease = await checkIngredientAvailability(item.id, item.quantity + 1);
+                  console.log('Can increase?', canIncrease); // Debug log
+                  
+                  if (canIncrease) {
+                    onUpdateQuantity(item.id, item.quantity + 1);
+                  } else {
+                    alert(`Cannot add more ${item.name}. Limited by ingredient availability.`);
+                  }
+                }}
+                disabled={productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
+              >+</button>
+            </div>
+            {#if productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
+              <p class="text-red-500 text-sm">Maximum available quantity reached ({productAvailability[item.id]})</p>
+            {/if}
           </div>
-          {#if productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
-            <p class="text-red-500 text-sm">Maximum available quantity reached ({productAvailability[item.id]})</p>
-          {/if}
+          <button class="remove-btn" on:click={() => onRemoveFromCart(item.id)}>×</button>
         </div>
-        <button class="remove-btn" on:click={() => onRemoveFromCart(item.id)}>×</button>
-      </div>
-    {/each}
+      {/each}
+    </div>
   </div>
 
   <div class="customer-details">
@@ -459,26 +462,50 @@
 {/if}
 
 <style>
-  .cart-section {
-    width: 400px;
+  .cart-container {
+    width: 100%;
+    max-width: 400px;
     background: white;
+    border-radius: 0.5rem;
     padding: 1rem;
-    border-left: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
+    height: calc(100vh - 4rem);
   }
 
   .cart-title {
     font-size: 1.5rem;
     font-weight: bold;
     margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e5e7eb;
+    margin-top: 20px;
+  }
+
+  .cart-items-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
   }
 
   .cart-items {
-    flex: 1;
+    height: 100%;
     overflow-y: auto;
+    padding-right: 0.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: #47cb50 #f5f5f5;
+  }
+
+  .cart-items::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .cart-items::-webkit-scrollbar-track {
+    background: #f5f5f5;
+    border-radius: 3px;
+  }
+
+  .cart-items::-webkit-scrollbar-thumb {
+    background: #47cb50;
+    border-radius: 3px;
   }
 
   .cart-item {
@@ -714,5 +741,32 @@
     background-color: #e5e7eb;
     cursor: not-allowed;
     opacity: 0.5;
+  }
+
+  @media (max-width: 768px) {
+    .cart-container {
+      padding: 0.5rem;
+    }
+
+    .cart-item {
+      padding: 0.5rem;
+    }
+
+    .quantity-controls {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .quantity-controls button {
+      padding: 0.25rem 0.5rem;
+    }
+
+    .save-customer-btn {
+      position: sticky;
+      bottom: 0;
+      margin: 0;
+      border-radius: 0;
+    }
   }
 </style>

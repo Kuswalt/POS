@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   export let activeMenu: string;
   export let selectedCategory: string = 'All';
+  export let onToggleCart: () => void;
   let isPosActive = activeMenu === "pos";
   let isInventoryActive = activeMenu === "inventory";
 
@@ -14,7 +15,14 @@
 
 <div class="flex flex-row h-[90vh] w-auto flex-shrink-0 pl-4 pr-2 py-2 mt-5">
   <div class="flex flex-col items-center py-2 flex-shrink-0 w-20 bg-green-500 rounded-2xl h-full">
-    <a class="flex items-center justify-center h-12 w-12 text-green-700 rounded-full" aria-label="Logo">
+    <button 
+      class="md:hidden flex items-center justify-center h-12 w-12 text-white rounded-full hover:bg-green-400 relative"
+      on:click={onToggleCart}
+      aria-label="Toggle Cart"
+    >
+      <i class="fa-solid fa-mug-saucer"></i>
+    </button>
+    <a class="hidden md:flex items-center justify-center h-12 w-12 text-green-700 rounded-full" aria-label="Logo">
       <i class="fa-solid fa-mug-saucer"></i>
     </a>
     <ul class="flex flex-col space-y-2 mt-12">

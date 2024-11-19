@@ -44,6 +44,7 @@
   let userId: number;
   let showSizeModal = false;
   let selectedProduct: GroupedProduct | null = null;
+  let showMobileCart = false;
 
   userStore.subscribe(user => {
     userId = user.userId;
@@ -249,6 +250,10 @@
     await addToCart(variant);
     selectedProduct = null;
   }
+
+  function toggleMobileCart() {
+    showMobileCart = !showMobileCart;
+  }
 </script>
 
 <Header {y} {innerHeight} />
@@ -257,17 +262,32 @@
     <SideNav 
       activeMenu="pos"
       bind:selectedCategory={selectedCategory}
+      onToggleCart={toggleMobileCart}
     />
     
     <div class="main-content">
       <!-- Search Bar -->
-      <div class="search-bar">
-        <input
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Search products..."
-          class="search-input"
-        />
+      <div class="search-controls">
+        <div class="search-bar">
+          <input
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Search products..."
+            class="search-input"
+          />
+        </div>
+        
+        <!-- Category Labels -->
+        <div class="category-tabs">
+          {#each categories as category}
+            <button 
+              class="category-tab {selectedCategory === category ? 'active' : ''}"
+              on:click={() => selectedCategory = category}
+            >
+              {category}
+            </button>
+          {/each}
+        </div>
       </div>
 
       <!-- Products Grid -->
@@ -294,13 +314,16 @@
       </div>
     </div>
 
-    <Cart 
-      {cartItems} 
-      {userId}
-      onUpdateQuantity={updateQuantity}
-      onRemoveFromCart={removeFromCart}
-      {total}
-    />
+    <!-- Desktop Cart -->
+    <div class="hidden md:block">
+      <Cart 
+        {cartItems} 
+        {userId}
+        onUpdateQuantity={updateQuantity}
+        onRemoveFromCart={removeFromCart}
+        {total}
+      />
+    </div>
   </div>
 </div>
 
@@ -322,11 +345,101 @@
   </div>
 {/if}
 
+<!-- Mobile Cart Modal -->
+{#if showMobileCart}
+  <div class="fixed inset-0 z-50 md:hidden">
+    <div class="absolute inset-0 bg-black bg-opacity-50" on:click={toggleMobileCart}></div>
+    <div class="absolute right-0 top-0 h-full w-[80%] max-w-md bg-white transform transition-transform">
+      <div class="h-full overflow-y-auto">
+        <div class="p-4 border-b">
+          <div class="flex justify-between items-center">
+            <h2 class="text-xl font-bold">Your Cart</h2>
+            <button 
+              class="text-gray-500 hover:text-gray-700"
+              on:click={toggleMobileCart}
+            >
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        <Cart 
+          {cartItems} 
+          {userId}
+          onUpdateQuantity={updateQuantity}
+          onRemoveFromCart={removeFromCart}
+          {total}
+        />
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
+  .search-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .search-bar {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    transition: all 0.2s;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: #47cb50;
+    box-shadow: 0 0 0 3px rgba(71, 203, 80, 0.1);
+  }
+
+  .category-tabs {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.5rem 0;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .category-tabs::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  .category-tab {
+    padding: 0.5rem 1rem;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 0.5rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+    color: #4b5563;
+  }
+
+  .category-tab:hover {
+    background: #e5e7eb;
+  }
+
+  .category-tab.active {
+    background: #47cb50;
+    color: white;
+  }
+
   .content {
     display: flex;
-    margin-top: 4rem;
     height: calc(100vh - 4rem);
+    margin-top: 4rem;
     overflow: hidden;
   }
 
@@ -336,15 +449,44 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #47cb50 #f5f5f5;
+
+  }
+
+  .main-content::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .main-content::-webkit-scrollbar-track {
+    background: #f5f5f5;
+  }
+
+  .main-content::-webkit-scrollbar-thumb {
+    background: #47cb50;
+    border-radius: 4px;
   }
 
   .products-container {
     flex: 1;
     overflow-y: auto;
-    min-height: 0; /* Important for flex child scrolling */
-    background: white;
-    border-radius: 0.5rem;
-    margin-top: 1rem;
+    min-height: 0;
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #47cb50 #f5f5f5; /* Firefox */
+  }
+
+  .products-container::-webkit-scrollbar {
+    width: 8px; /* Chrome, Safari, Opera */
+  }
+
+  .products-container::-webkit-scrollbar-track {
+    background: #f5f5f5;
+  }
+
+  .products-container::-webkit-scrollbar-thumb {
+    background: #47cb50;
+    border-radius: 4px;
   }
 
   .products-section {
@@ -382,27 +524,6 @@
     transform: translateY(-2px);
   }
 
-  .search-bar {
-    padding: 1rem;
-    background: white;
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .search-input {
-    width: 100%;
-    padding: 0.5rem 1rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: #47cb50;
-    box-shadow: 0 0 0 2px rgba(71, 203, 80, 0.2);
-  }
-
   .modal-backdrop {
     position: fixed;
     top: 0;
@@ -436,5 +557,58 @@
   .size-option:hover {
     background: #47cb50;
     color: white;
+  }
+
+  .container {
+    width: 100%;
+    height: 100vh;
+    background-color: #f5f5f5;
+    overflow: hidden;
+  }
+
+  .content {
+    display: flex;
+    height: calc(100vh - 4rem);
+    margin-top: 4rem;
+    overflow: hidden;
+  }
+
+  .main-content {
+    flex: 1;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #47cb50 #f5f5f5;
+    margin-top: 20px;
+  }
+
+  /* Responsive grid for products */
+  :global(.grid-cols-3) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .content {
+      margin-top: 3rem;
+    }
+
+    .main-content {
+      padding: 0.5rem;
+    }
+
+    :global(.grid-cols-3) {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .category-tabs {
+      margin: 0 -0.5rem;
+      padding: 0.5rem;
+    }
   }
 </style>

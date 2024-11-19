@@ -247,9 +247,10 @@
                             bind:value={stockQuantity}
                             min="0"
                             required
+                            placeholder="Quantity"
                             class="input-field"
                         />
-                        <select bind:value={unitOfMeasure}>
+                        <select bind:value={unitOfMeasure} class="input-field">
                             <option value="pieces">Pieces</option>
                             <option value="grams">Grams</option>
                             <option value="kilograms">Kilograms</option>
@@ -377,7 +378,12 @@
                     {/each}
                 </tbody>
             </table>
-            <button on:click={() => showProductsModal = false}>Close</button>
+            <button 
+                class="w-full mt-4 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
+                on:click={() => showProductsModal = false}
+            >
+                Close
+            </button>
         </div>
     </div>
 {/if}
@@ -428,6 +434,11 @@
     .layout {
         display: flex;
         height: 100vh;
+        -webkit-box-flex: 1;
+        -webkit-flex: 1;
+        display: -webkit-box;
+        display: -webkit-flex;
+        -webkit-overflow-scrolling: touch;
     }
     .content {
         display: flex;
@@ -436,12 +447,15 @@
         padding: 20px;
         margin-top: 4rem;
         justify-content: flex-start;
+        overflow-x: hidden;
+        overflow-y: auto;
     }
     .product-details {
         margin: 20px;
     }
     .stock-table {
         margin: 20px;
+        overflow-x: auto;
     }
     .side-nav {
         margin-top: 50px;
@@ -469,20 +483,42 @@
     
     .details {
         display: flex;
+        flex-wrap: wrap;
         gap: 10px;
-        margin-bottom: 20px;
+        padding: 1rem;
+        width: 100%;
     }
     
-    input {
-        padding: 5px;
+    .input-field,
+    .quantity-input input,
+    .quantity-input select {
+        padding: 0.75rem;
         border: 1px solid #ddd;
-        border-radius: 4px;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        min-height: 2.5rem;
+        width: 100%;
     }
-
+    
+    .quantity-input {
+        display: flex;
+        gap: 0.5rem;
+        width: 100%;
+    }
+    
+    button {
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        min-height: 2.5rem;
+        width: auto;
+        white-space: nowrap;
+    }
+    
     .search-bar {
         margin: 20px;
     }
-
+    
     .search-input {
         width: 100%;
         padding: 8px;
@@ -490,7 +526,7 @@
         border-radius: 4px;
         font-size: 16px;
     }
-
+    
     .modal-backdrop {
         position: fixed;
         top: 0;
@@ -502,95 +538,102 @@
         justify-content: center;
         align-items: center;
         z-index: 1000;
+        padding: 1rem;
     }
-
+    
     .modal-content {
         background: white;
-        padding: 20px;
-        border-radius: 8px;
-        width: 90%;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        width: 95%;
         max-width: 500px;
+        max-height: 85vh;
+        overflow-y: auto;
+        position: relative;
     }
-
+    
     .modal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 20px;
     }
-
+    
     .close-btn {
         background: none;
         border: none;
         font-size: 24px;
         cursor: pointer;
     }
-
+    
     .modal-body {
         display: flex;
         flex-direction: column;
         gap: 15px;
     }
-
+    
     .modal-actions {
         display: flex;
         gap: 10px;
         margin-top: 20px;
     }
-
+    
     .update-btn {
         background: #4CAF50;
         color: white;
     }
-
+    
     .cancel-btn {
         background: #f44336;
         color: white;
     }
-
+    
     .details button {
         background-color: #4CAF50;
         color: white;
     }
-
+    
     .details button:hover {
         background-color: #45a049;
     }
-
+    
     td button:first-child {
         background-color: #2196F3;
         color: white;
     }
-
+    
     td button:first-child:hover {
         background-color: #1976D2;
     }
-
+    
     td button:last-child {
         background-color: #f44336;
         color: white;
     }
-
+    
     td button:last-child:hover {
         background-color: #d32f2f;
     }
-
+    
     .quantity-input {
         display: flex;
         gap: 5px;
+        display: -webkit-box;
+        display: -webkit-flex;
+        -webkit-flex-wrap: wrap;
     }
-
+    
     .quantity-input input,
     .quantity-input select {
         padding: 5px;
         border: 1px solid #ddd;
         border-radius: 4px;
     }
-
+    
     .quantity-input select {
         min-width: 120px;
     }
-
+    
     .alert-container {
         position: fixed;
         top: 20px;
@@ -600,21 +643,21 @@
         width: 90%;
         max-width: 500px;
     }
-
+    
     .input-field {
         /* Add your existing input styles */
     }
-
+    
     .input-field:invalid {
         border-color: red;
     }
-
+    
     .product-list {
         margin: 1rem 0;
         padding: 0;
         list-style: none;
     }
-
+    
     .product-list li {
         padding: 0.5rem;
         border-bottom: 1px solid #eee;
@@ -622,7 +665,7 @@
         justify-content: space-between;
         align-items: center;
     }
-
+    
     .close-btn {
         margin-top: 1rem;
         padding: 0.5rem 1rem;
@@ -630,8 +673,296 @@
         color: white;
         border-radius: 0.25rem;
     }
-
+    
     .close-btn:hover {
         background-color: #dc2626;
+    }
+    
+    .stock-table::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    
+    .stock-table::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    
+    .stock-table::-webkit-scrollbar-thumb {
+        background: #47cb50;
+        border-radius: 3px;
+    }
+    
+    @media screen and (max-width: 768px) {
+        .content {
+            padding: 10px;
+            overflow-x: hidden;
+        }
+    
+        table {
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+            width: 100%;
+        }
+    
+        .modal-content {
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+    }
+    
+    /* Add these media queries to handle mobile responsiveness */
+    @media screen and (max-width: 768px) {
+        .details {
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            padding: 0 10px;
+        }
+    
+        .quantity-input {
+            flex-direction: column;
+            width: 100%;
+        }
+    
+        .quantity-input input,
+        .quantity-input select,
+        .details input,
+        .details button {
+            width: 100%;
+            min-height: 40px;
+        }
+    
+        .stock-table {
+            margin: 10px;
+            overflow-x: auto;
+        }
+    
+        table {
+            min-width: 600px; /* Minimum width to ensure content is readable */
+        }
+    
+        td {
+            white-space: nowrap;
+            padding: 8px 4px;
+        }
+    
+        td.flex {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 4px;
+        }
+    
+        td button {
+            padding: 6px 8px;
+            font-size: 12px;
+            white-space: nowrap;
+            min-width: auto;
+        }
+    }
+    
+    /* Add these to your existing modal styles for better mobile display */
+    @media screen and (max-width: 768px) {
+        .modal-content {
+            width: 95%;
+            padding: 15px;
+            margin: 10px;
+        }
+    
+        .modal-body .quantity-input {
+            flex-direction: column;
+            width: 100%;
+        }
+    
+        .modal-body input,
+        .modal-body select {
+            width: 100%;
+            min-height: 40px;
+        }
+    
+        .modal-actions {
+            flex-direction: column;
+            gap: 8px;
+        }
+    
+        .modal-actions button {
+            width: 100%;
+        }
+    }
+    
+    /* Responsive adjustments */
+    @media screen and (min-width: 768px) {
+        .details {
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+    
+        .input-field {
+            flex: 2;
+        }
+    
+        .quantity-input {
+            flex: 2;
+            flex-direction: row;
+        }
+    
+        .quantity-input input {
+            flex: 1;
+        }
+    
+        .quantity-input select {
+            width: auto;
+            min-width: 120px;
+        }
+    
+        button {
+            flex: 1;
+            max-width: 150px;
+        }
+    }
+    
+    /* Table responsive styles */
+    .stock-table {
+        overflow-x: auto;
+        margin: 1rem;
+        border-radius: 0.5rem;
+        background: white;
+    }
+    
+    table {
+        min-width: 100%;
+    }
+    
+    @media screen and (max-width: 767px) {
+        td.flex {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    
+        td.flex button {
+            width: 100%;
+            margin: 0;
+        }
+    }
+    
+    td.flex {
+        display: flex;
+        gap: 4px;
+        justify-content: flex-start;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    td.flex button {
+        font-size: 0.75rem; /* 12px */
+        padding: 0.375rem 0.5rem; /* 6px 8px */
+        min-width: auto;
+        flex: 1;
+        white-space: nowrap;
+        max-width: fit-content;
+    }
+    
+    @media screen and (max-width: 768px) {
+        .details {
+            flex-direction: column;
+            gap: 10px;
+            width: 100%; /* Changed from 60% to 100% */
+            padding: 0 10px;
+        }
+    
+        td.flex {
+            padding: 4px;
+            min-width: 120px;
+        }
+    
+        td.flex button {
+            font-size: 0.7rem;
+            padding: 4px 6px;
+            margin: 2px;
+        }
+    
+        /* Adjust the "Used In Products" button specifically */
+        td.flex button:last-child {
+            font-size: 0.7rem;
+            padding: 4px 6px;
+            white-space: normal;
+            text-align: center;
+            line-height: 1;
+        }
+    
+        table {
+            min-width: 600px;
+            font-size: 0.875rem; /* Slightly smaller font for table content */
+        }
+    
+        th, td {
+            padding: 6px 4px;
+        }
+    }
+    
+    /* Add specific styles for the action buttons container */
+    .action-buttons {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+    
+    /* Adjust the main add item button for mobile */
+    @media screen and (max-width: 768px) {
+        .details button {
+            padding: 8px 12px;
+            font-size: 0.875rem;
+            height: auto;
+            width: auto;
+        }
+    
+        .input-field,
+        .quantity-input input,
+        .quantity-input select {
+            padding: 8px;
+            font-size: 0.875rem;
+        }
+    }
+    
+    /* Add smooth scrolling for modal content */
+    .modal-content {
+        scrollbar-width: thin;
+        scrollbar-color: #47cb50 #f5f5f5;
+    }
+    
+    .modal-content::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .modal-content::-webkit-scrollbar-track {
+        background: #f5f5f5;
+        border-radius: 3px;
+    }
+    
+    .modal-content::-webkit-scrollbar-thumb {
+        background: #47cb50;
+        border-radius: 3px;
+    }
+    
+    @media screen and (max-width: 768px) {
+        .modal-content button {
+            width: 22%;
+            padding: 6px;
+            font-size: 1rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .modal-content {
+            width: 95%;
+            max-width: none;
+            margin: 10px;
+            padding: 1rem;
+        }
     }
 </style>
