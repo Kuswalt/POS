@@ -44,7 +44,7 @@
     }
 </script>
 
-<div class="flex flex-col items-center w-full px-4">
+<div class="flex flex-col items-center w-full px-4 pt-[20vh]">
     <div class="logo-img mx-auto mb-4 mt-8">
         <img src="/images/logo.png" class="logo w-[150px] h-[150px] md:w-[200px] md:h-[200px]" alt="Logo">
     </div>

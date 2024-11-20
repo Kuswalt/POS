@@ -42,7 +42,12 @@
 </script>
 
 <div class="item-card {!isAvailable ? 'unavailable' : ''}">
-  <img src={product.image ? `uploads/${product.image}` : 'placeholder.jpg'} alt={product.name} />
+  <div class="image-container">
+    <img 
+      src={product.image ? `uploads/${product.image}` : 'placeholder.jpg'} 
+      alt={product.name} 
+    />
+  </div>
   <div class="item-details">
     <h3>{product.name}</h3>
     <p class="price">₱{product.price}</p>
@@ -67,6 +72,20 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     max-width: 200px;
     cursor: pointer;
+  }
+
+  .image-container {
+    width: 176px;
+    height: 200px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+
+  .image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
   }
 
   .item-card:hover {

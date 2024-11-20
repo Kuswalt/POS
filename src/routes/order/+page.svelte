@@ -328,9 +328,23 @@
 </div>
 
 {#if showSizeModal && selectedProduct}
-  <div class="modal-backdrop">
-    <div class="modal-content">
-      <h2 class="text-xl font-bold mb-4">Select Size for {selectedProduct.name}</h2>
+  <div class="modal-backdrop" on:click={() => {
+    showSizeModal = false;
+    selectedProduct = null;
+  }}>
+    <div class="modal-content" on:click|stopPropagation>
+      <div class="modal-header">
+        <h2 class="text-xl font-bold">Select Size for {selectedProduct.name}</h2>
+        <button 
+          class="close-modal-btn"
+          on:click={() => {
+            showSizeModal = false;
+            selectedProduct = null;
+          }}
+        >
+          ×
+        </button>
+      </div>
       <div class="grid gap-4">
         {#each selectedProduct.variants as variant}
           <button
@@ -349,7 +363,7 @@
 {#if showMobileCart}
   <div class="fixed inset-0 z-50 md:hidden">
     <div class="absolute inset-0 bg-black bg-opacity-50" on:click={toggleMobileCart}></div>
-    <div class="absolute right-0 top-0 h-full w-[80%] max-w-md bg-white transform transition-transform">
+    <div class="mobile-cart-container">
       <div class="h-full overflow-y-auto">
         <div class="p-4 border-b">
           <div class="flex justify-between items-center">
@@ -589,7 +603,9 @@
   :global(.grid-cols-3) {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+    gap: 10px;
+    justify-items: center;
+
   }
 
   @media (max-width: 768px) {
@@ -610,5 +626,46 @@
       margin: 0 -0.5rem;
       padding: 0.5rem;
     }
+  }
+
+  .mobile-cart-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 400px;
+    max-height: 90vh;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    .mobile-cart-container {
+      width: 95%;
+      max-height: 80vh;
+    }
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .close-modal-btn {
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    color: #666;
+    transition: color 0.2s;
+  }
+
+  .close-modal-btn:hover {
+    color: #000;
   }
 </style>

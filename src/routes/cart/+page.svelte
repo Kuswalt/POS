@@ -746,6 +746,7 @@
   @media (max-width: 768px) {
     .cart-container {
       padding: 0.5rem;
+      padding-bottom: 95px;
     }
 
     .cart-item {
