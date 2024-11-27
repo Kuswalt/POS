@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
+import { browser } from '$app/environment';
 
 // Define the user store type
 type User = {
@@ -17,8 +18,33 @@ const initialState: User = {
     role: 0
 };
 
-// Create the store with initial state
-export const userStore = writable<User>(initialState);
+// Create the store with initial state and initialize from localStorage if available
+function createUserStore() {
+    const { subscribe, set } = writable<User>(initialState);
+
+    // Initialize from localStorage if we're in the browser
+    if (browser) {
+        const stored = localStorage.getItem('auth');
+        if (stored) {
+            try {
+                const user = JSON.parse(stored);
+                if (user.userId && user.username && user.isAuthenticated) {
+                    set(user);
+                }
+            } catch (error) {
+                console.error('Error parsing auth data:', error);
+                localStorage.removeItem('auth');
+            }
+        }
+    }
+
+    return {
+        subscribe,
+        set
+    };
+}
+
+export const userStore = createUserStore();
 
 export function clearUser() {
     userStore.set(initialState);
