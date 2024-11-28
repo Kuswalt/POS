@@ -17,7 +17,7 @@
         }
         
         try {
-            const response = await fetch('http://localhost/POS/api/routes.php?request=login', {
+            const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

@@ -28,7 +28,7 @@
     );
 
     async function fetchItems() {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=get-items');
+        const response = await fetch('/api/get-items');
         const result = await response.json();
         if (result.status) {
             items = result.data.map((item: any) => ({
@@ -72,7 +72,7 @@
         };
 
         try {
-            const response = await fetch('http://localhost/POS/api/routes.php?request=add-item-stock', {
+            const response = await fetch('/api/add-item-stock', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -106,7 +106,7 @@
     }
 
     async function updateItemStock(inventoryId: number) {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=update-item-stock', {
+        const response = await fetch('/api/update-item-stock', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -136,7 +136,7 @@
     async function deleteItemStock(inventoryId: number) {
         if (confirm('Are you sure you want to delete this item?')) {
             try {
-                const response = await fetch('http://localhost/POS/api/routes.php?request=delete-item-stock', {
+                const response = await fetch('/api/delete-item-stock', {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
@@ -184,7 +184,7 @@
 
     async function showUsedInProducts(item: any) {
         try {
-            const response = await fetch(`http://localhost/POS/api/routes.php?request=get-products-using-ingredient&inventory_id=${item.inventory_id}`);
+            const response = await fetch(`/api/get-products-using-ingredient&inventory_id=${item.inventory_id}`);
             const result = await response.json();
             
             if (result.status) {

@@ -1,14 +1,20 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
 	plugins: [sveltekit()],
 	server: {
 		fs: {
-			allow: ['..', './uploads']  // Add uploads directory to allowed list
+			allow: ['..', './uploads']
+		},
+		proxy: {
+			'/api': {
+				target: 'http://localhost/POS/api',
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/api/, '')
+			}
 		}
 	},
-
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	}

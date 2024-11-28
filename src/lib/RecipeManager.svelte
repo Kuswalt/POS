@@ -50,7 +50,7 @@
     });
   
     async function fetchIngredients() {
-      const response = await fetch('http://localhost/POS/api/routes.php?request=get-items');
+      const response = await fetch('/api/get-items');
       const result = await response.json();
       if (result.status) {
         ingredients = result.data;
@@ -58,7 +58,7 @@
     }
   
     async function fetchProductRecipe() {
-      const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${productId}`);
+      const response = await fetch(`/api/get-product-ingredients&product_id=${productId}`);
       const result = await response.json();
       if (result.status) {
         productRecipe = result.data;
@@ -72,7 +72,7 @@
       }
   
       try {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=add-product-ingredient', {
+        const response = await fetch('/api/add-product-ingredient', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -105,7 +105,7 @@
     async function removeIngredient(ingredientId: number) {
       if (!confirm('Are you sure you want to remove this ingredient?')) return;
   
-      const response = await fetch('http://localhost/POS/api/routes.php?request=delete-product-ingredient', {
+      const response = await fetch('/api/delete-product-ingredient', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -124,7 +124,7 @@
     }
   
     async function updateIngredientQuantity(ingredient: Recipe) {
-      const response = await fetch('http://localhost/POS/api/routes.php?request=update-product-ingredient', {
+      const response = await fetch('/api/update-product-ingredient', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

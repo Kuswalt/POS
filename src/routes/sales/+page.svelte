@@ -565,7 +565,7 @@
     }
 
     try {
-      const response = await fetch('http://localhost/POS/api/routes.php?request=delete-order', {
+      const response = await fetch('/api/delete-order', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -577,7 +577,7 @@
       
       if (result.status) {
         // Fetch fresh data from the server instead of filtering locally
-        const refreshResponse = await fetch('http://localhost/POS/api/routes.php?request=get-sales-data');
+        const refreshResponse = await fetch('/api/get-sales-data');
         const refreshResult = await refreshResponse.json();
         
         if (refreshResult.status) {
@@ -607,7 +607,7 @@
     }
 
     try {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=delete-all-orders', {
+        const response = await fetch('/api/delete-all-orders', {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
@@ -618,7 +618,7 @@
         
         if (result.status) {
             // Fetch fresh data from the server instead of clearing locally
-            const refreshResponse = await fetch('http://localhost/POS/api/routes.php?request=get-sales-data');
+            const refreshResponse = await fetch('/api/get-sales-data');
             const refreshResult = await refreshResponse.json();
             
             if (refreshResult.status) {
@@ -644,7 +644,7 @@
 
   onMount(async () => {
     try {
-      const response = await fetch('http://localhost/POS/api/routes.php?request=get-sales-data');
+      const response = await fetch('/api/get-sales-data');
       const result = await response.json();
       
       if (result.status) {

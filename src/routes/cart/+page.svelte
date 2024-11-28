@@ -49,7 +49,7 @@
   // Function to check ingredient availability
   async function checkIngredientAvailability(productId: number, requestedQuantity: number): Promise<boolean> {
     try {
-      const response = await fetch(`http://localhost/POS/api/routes.php?request=check-ingredient-availability&product_id=${productId}&quantity=${requestedQuantity}`, {
+      const response = await fetch(`/api/check-ingredient-availability&product_id=${productId}&quantity=${requestedQuantity}`, {
         method: 'GET'
       });
 
@@ -86,7 +86,7 @@
 
     try {
       // First save customer info
-      const customerResponse = await fetch('http://localhost/POS/api/routes.php?request=add-customer', {
+      const customerResponse = await fetch('/api/request=add-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -107,7 +107,7 @@
 
       if (customerResult.status) {
         // Create order
-        const orderResponse = await fetch('http://localhost/POS/api/routes.php?request=create-order', {
+        const orderResponse = await fetch('/api/create-order', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -135,7 +135,7 @@
 
         if (orderResult.status) {
           // Record sale
-          const saleResponse = await fetch('http://localhost/POS/api/routes.php?request=add-sale', {
+          const saleResponse = await fetch('/api/add-sale', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -157,7 +157,7 @@
 
           if (saleResult.status) {
             // Generate receipt
-            const receiptResponse = await fetch('http://localhost/POS/api/routes.php?request=add-receipt', {
+            const receiptResponse = await fetch('/api/add-receipt', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -178,7 +178,7 @@
 
             if (receiptResult.status) {
               // Clear cart from database
-              const clearCartResponse = await fetch('http://localhost/POS/api/routes.php?request=clear-cart', {
+              const clearCartResponse = await fetch('/api/clear-cart', {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json'

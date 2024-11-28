@@ -61,7 +61,7 @@
 
   async function fetchItems() {
     try {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=get-menu-items');
+        const response = await fetch('/api/get-menu-items');
         const data = await response.json();
         
         if (Array.isArray(data)) {
@@ -83,7 +83,7 @@
 
   async function fetchCartItems() {
     try {
-      const response = await fetch(`http://localhost/POS/api/routes.php?request=get-cart-items&user_id=${userId}`);
+      const response = await fetch(`/api/get-cart-items?user_id=${userId}`);
       const result = await response.json();
       
       if (result.status && Array.isArray(result.data)) {
@@ -107,7 +107,7 @@
 
   async function checkInventoryStock(product: Product, quantity: number = 1): Promise<{ available: boolean; message: string }> {
     try {
-      const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${product.product_id}`);
+      const response = await fetch(`/api/get-product-ingredients&product_id=${product.product_id}`);
       const result = await response.json();
       
       if (!result.status || !result.data || result.data.length === 0) {
@@ -132,7 +132,7 @@
   async function addToCart(product: Product) {
     try {
         // First, get current cart quantity
-        const response = await fetch(`http://localhost/POS/api/routes.php?request=get-cart-item&product_id=${product.product_id}&user_id=${userId}`);
+        const response = await fetch(`/api/get-cart-item&product_id=${product.product_id}&user_id=${userId}`);
         const cartResult = await response.json();
         const currentQuantity = cartResult.status ? (cartResult.data?.quantity || 0) : 0;
         
@@ -149,7 +149,7 @@
             user_id: userId
         };
 
-        const addResponse = await fetch('http://localhost/POS/api/routes.php?request=add-to-cart', {
+        const addResponse = await fetch('/api/add-to-cart', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -171,7 +171,7 @@
 
   async function removeFromCart(productId: number) {
     try {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=remove-from-cart', {
+        const response = await fetch('/api/remove-from-cart', {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
@@ -260,7 +260,7 @@
     try {
         availabilityLoading.set(true);
         const productIds = products.map(p => p.product_id);
-        const response = await fetch(`http://localhost/POS/api/routes.php?request=get-batch-product-ingredients&product_ids=${JSON.stringify(productIds)}`);
+        const response = await fetch(`/api/get-batch-product-ingredients&product_ids=${JSON.stringify(productIds)}`);
         const result = await response.json();
         
         if (result.status && result.data) {

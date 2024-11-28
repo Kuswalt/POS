@@ -36,11 +36,12 @@
   });
 
   async function fetchItems() {
-    const response = await fetch('http://localhost/POS/api/routes.php?request=get-menu-items');
+    const response = await fetch('/api/get-menu-items');
     const data = await response.json();
     items = data.map((item: Item) => ({
       ...item,
-      imageUrl: item.image ? `http://localhost/POS/uploads/${item.image}` : '/placeholder.jpg'
+      imageUrl: item.image ? `/POS/uploads/${item.image}` : '/placeholder.jpg'
+      // imageUrl: item.image ? `http://localhost/POS/uploads/${item.image}` : '/placeholder.jpg'
     }));
   }
 
@@ -76,7 +77,7 @@
     formData.append('size', newItem.size || 'Standard');
 
     try {
-      const response = await fetch('http://localhost/POS/api/routes.php?request=add-menu-item', {
+      const response = await fetch('/api/add-menu-item', {
         method: 'POST',
         body: formData,
       });
@@ -131,7 +132,7 @@
     }
 
     try {
-        const response = await fetch('http://localhost/POS/api/routes.php?request=update-menu-item', {
+        const response = await fetch('/api/update-menu-item', {
             method: 'POST',
             body: formData,
         });
@@ -160,7 +161,7 @@
   }
 
   async function deleteItem(itemId: number) {
-    const response = await fetch('http://localhost/POS/api/routes.php?request=delete-menu-item', {
+    const response = await fetch('/api/delete-menu-item', {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

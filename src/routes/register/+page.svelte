@@ -6,7 +6,7 @@
 
     async function register() {
         try {
-            const response = await fetch('http://localhost/POS/api/routes.php?request=add-account', {
+            const response = await fetch('/api/add-account', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
