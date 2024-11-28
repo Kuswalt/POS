@@ -7,6 +7,7 @@
   import { userStore } from '$lib/auth';
   import { goto } from '$app/navigation';
   import { checkAuth } from '$lib/auth';
+  import { productAvailability, availabilityLoading } from '$lib/stores/productAvailability';
 
   type Product = {
     product_id: number;
@@ -253,6 +254,32 @@
 
   function toggleMobileCart() {
     showMobileCart = !showMobileCart;
+  }
+
+  async function checkBatchAvailability(products: Product[]) {
+    try {
+        availabilityLoading.set(true);
+        const productIds = products.map(p => p.product_id);
+        const response = await fetch(`http://localhost/POS/api/routes.php?request=get-batch-product-ingredients&product_ids=${JSON.stringify(productIds)}`);
+        const result = await response.json();
+        
+        if (result.status && result.data) {
+            const availability: Record<number, boolean> = {};
+            Object.entries(result.data).forEach(([productId, data]: [string, any]) => {
+                availability[Number(productId)] = data.isAvailable;
+            });
+            productAvailability.set(availability);
+        }
+    } catch (error) {
+        console.error('Error checking batch availability:', error);
+    } finally {
+        availabilityLoading.set(false);
+    }
+  }
+
+  // Call this when products are loaded
+  $: if (products.length > 0) {
+    checkBatchAvailability(products);
   }
 </script>
 

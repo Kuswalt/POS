@@ -202,6 +202,10 @@ try {
                     $quantity = $_GET['quantity'];
                     echo json_encode($get->checkIngredientAvailability($product_id, $quantity));
                     break;
+                case 'get-batch-product-ingredients':
+                    $product_ids = json_decode($_GET['product_ids']);
+                    echo json_encode($get->getBatchProductIngredients($product_ids));
+                    break;
                 default:
                     echo json_encode(["error" => "Invalid request"]);
                     http_response_code(400);

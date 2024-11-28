@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { productAvailability } from './stores/productAvailability';
+  
   export let product: {
     product_id: number;
     name: string;
@@ -8,37 +10,7 @@
     is_available?: boolean;
   };
 
-  let isAvailable = true;
-  
-  async function checkAvailability() {
-    try {
-      const response = await fetch(`http://localhost/POS/api/routes.php?request=get-product-ingredients&product_id=${product.product_id}`);
-      const result = await response.json();
-      
-      if (!result.status || !result.data || result.data.length === 0) {
-        isAvailable = false;
-        return;
-      }
-
-      // Check if any ingredient is insufficient for the requested quantity
-      for (const ingredient of result.data) {
-        const requiredQuantity = ingredient.quantity_needed;
-        if (ingredient.stock_quantity < requiredQuantity) {
-          isAvailable = false;
-          return;
-        }
-      }
-      
-      isAvailable = true;
-    } catch (error) {
-      console.error('Error checking availability:', error);
-      isAvailable = false;
-    }
-  }
-
-  $: if (product.product_id) {
-    checkAvailability();
-  }
+  $: isAvailable = $productAvailability[product.product_id] ?? true;
 </script>
 
 <div class="item-card {!isAvailable ? 'unavailable' : ''}">

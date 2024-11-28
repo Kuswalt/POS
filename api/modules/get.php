@@ -399,4 +399,47 @@ class Get {
             ];
         }
     }
+    public function getBatchProductIngredients($product_ids) {
+        global $conn;
+        
+        try {
+            $placeholders = str_repeat('?,', count($product_ids) - 1) . '?';
+            $sql = "SELECT pi.product_id, pi.quantity_needed, i.stock_quantity, i.unit_of_measure
+                    FROM product_ingredients pi 
+                    JOIN inventory i ON i.inventory_id = pi.inventory_id 
+                    WHERE pi.product_id IN ($placeholders)";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->execute($product_ids);
+            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Group ingredients by product_id
+            $productAvailability = [];
+            foreach ($ingredients as $ingredient) {
+                $productId = $ingredient['product_id'];
+                if (!isset($productAvailability[$productId])) {
+                    $productAvailability[$productId] = [
+                        'isAvailable' => true,
+                        'ingredients' => []
+                    ];
+                }
+                
+                $productAvailability[$productId]['ingredients'][] = $ingredient;
+                if ($ingredient['stock_quantity'] < $ingredient['quantity_needed']) {
+                    $productAvailability[$productId]['isAvailable'] = false;
+                }
+            }
+            
+            return [
+                "status" => true,
+                "data" => $productAvailability
+            ];
+            
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Error fetching ingredients: " . $e->getMessage()
+            ];
+        }
+    }
 }
