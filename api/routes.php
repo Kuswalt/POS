@@ -27,9 +27,13 @@ $get = new Get($conn);
 if (isset($_REQUEST['request'])) {
     $request = explode('/', $_REQUEST['request']);
 } else {
-    echo json_encode(["error" => "Request parameter not found"]);
-    http_response_code(404);
-    exit();
+    // Try to parse from the path
+    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $request = explode('/', trim($path, '/'));
+    // Remove 'api' from the beginning if present
+    if ($request[0] === 'api') {
+        array_shift($request);
+    }
 }
 
 try {

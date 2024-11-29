@@ -86,7 +86,7 @@
 
     try {
       // First save customer info
-      const customerResponse = await fetch('/api/request=add-customer', {
+      const customerResponse = await fetch('/api/add-customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
