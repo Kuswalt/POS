@@ -272,8 +272,7 @@
             {/each}
           </select>
         </div>
-        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md w-full">Add Item</button>
-      </form>
+        <button type="submit" class="bg-[#d4a373] hover:bg-[#cba17f] text-[#faedcd] px-4 py-2 rounded-md w-full transition-colors">Add Item</button>      </form>
     </div>
 
     <div class="mb-6">
@@ -340,8 +339,8 @@
               </select>
             </div>
             <div class="flex gap-2">
-              <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded-md flex-1">Update</button>
-              <button type="button" on:click={closeEditModal} class="bg-gray-500 text-white px-4 py-2 rounded-md flex-1">Cancel</button>
+              <button type="submit" class="bg-[#d4a373] hover:bg-[#cba17f] text-[#faedcd] px-4 py-2 rounded-md flex-1 transition-colors">Update</button>
+              <button type="button" on:click={closeEditModal} class="bg-[#d4a373] hover:bg-[#cba17f] text-[#faedcd] px-4 py-2 rounded-md flex-1 transition-colors">Cancel</button>
             </div>
           </form>
         </div>
@@ -389,7 +388,7 @@
         productName={selectedProduct.name}
       />
       <button
-        class="mt-4 bg-gray-500 text-white px-4 py-2 rounded-md"
+        class="mt-4 bg-[#d4a373] hover:bg-[#cba17f] text-[#faedcd] px-4 py-2 rounded-md transition-colors"
         on:click={() => showRecipeManager = false}
       >
         Close
@@ -403,7 +402,7 @@
     width: 100%;
     min-height: 100vh;
     padding: 1rem;
-    background-color: #f5f5f5;
+    background-color: #faedcd;
   }
 
   .settings-content {
@@ -450,7 +449,7 @@
   }
 
   .edit-btn {
-    background-color: #4CAF50;
+    background-color: #d4a373;
     color: white;
   }
 
@@ -473,13 +472,14 @@
   }
 
   .modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 500px;
-    position: relative;
-  }
+  background: #faedcd;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
 
   .modal-header {
     display: flex;

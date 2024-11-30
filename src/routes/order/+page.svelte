@@ -630,9 +630,8 @@
   :global(.grid-cols-3) {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 10px;
-    justify-items: center;
-
+    gap: 1rem;
+    padding: 1rem;
   }
 
   @media (max-width: 768px) {
@@ -646,7 +645,8 @@
 
     :global(.grid-cols-3) {
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 0.5rem;
+      gap: 0.75rem;
+      padding: 0.5rem;
     }
 
     .category-tabs {

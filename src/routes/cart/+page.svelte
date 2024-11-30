@@ -467,7 +467,7 @@
     max-width: 400px;
     background: white;
     border-radius: 0.5rem;
-    padding: 1rem;
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     height: calc(100vh - 4rem);
@@ -484,6 +484,7 @@
     flex: 1;
     overflow: hidden;
     position: relative;
+    margin: 1rem 0;
   }
 
   .cart-items {
@@ -745,8 +746,8 @@
 
   @media (max-width: 768px) {
     .cart-container {
-      padding: 0.5rem;
-      padding-bottom: 95px;
+      padding: 1rem;
+      padding-bottom: 6rem;
     }
 
     .cart-item {

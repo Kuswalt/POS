@@ -230,7 +230,9 @@
         height: 350,
         toolbar: {
           show: true
-        }
+        },
+        fontFamily: 'DynaPuff, cursive',
+        color: '#d4a373'
       },
       stroke: {
         curve: 'smooth',
@@ -240,6 +242,12 @@
         categories: periodData.x,
         title: {
           text: 'Period'
+        },
+        labels: {
+          style: {
+            fontFamily: 'DynaPuff, cursive',
+            color: '#d4a373'
+          }
         }
       },
       yaxis: {
@@ -247,12 +255,20 @@
           text: 'Sales Amount (₱)'
         },
         labels: {
-          formatter: (value) => `₱${value.toFixed(2)}`
+          formatter: (value) => `₱${value.toFixed(2)}`,
+          style: {
+            fontFamily: 'DynaPuff, cursive',
+            color: '#d4a373'
+          }
         }
       },
       title: {
         text: 'Total Sales per Month',
-        align: 'center'
+        align: 'center',
+        style: {
+          fontFamily: 'DynaPuff, cursive',
+          color: '#d4a373'
+        }
       },
       grid: {
         borderColor: '#e0e0e0',
@@ -279,7 +295,8 @@
         height: 350,
         toolbar: {
           show: true
-        }
+        },
+        fontFamily: 'DynaPuff, cursive',
       },
       stroke: {
         curve: 'smooth',
@@ -289,6 +306,11 @@
         type: 'category',
         title: {
           text: 'Period'
+        },
+        labels: {
+          style: {
+            fontFamily: 'DynaPuff, cursive'
+          }
         }
       },
       yaxis: {
@@ -296,12 +318,19 @@
           text: 'Sales Amount (₱)'
         },
         labels: {
-          formatter: (value) => `₱${value.toFixed(2)}`
+          formatter: (value) => `₱${value.toFixed(2)}`,
+          style: {
+            fontFamily: 'DynaPuff, cursive'
+          }
         }
       },
       title: {
         text: 'Sales per Product per Month',
-        align: 'center'
+        align: 'center',
+        style: {
+          fontFamily: 'DynaPuff, cursive',
+          color: '#d4a373'
+        }
       },
       grid: {
         borderColor: '#e0e0e0',
@@ -336,7 +365,9 @@
         height: 350,
         toolbar: {
           show: true
-        }
+        },
+        fontFamily: 'DynaPuff, cursive', 
+        color: '#d4a373'
       },
       stroke: {
         curve: 'smooth',
@@ -346,6 +377,12 @@
         categories: dailyData.x,
         title: {
           text: 'Date'
+        },
+        labels: {
+          style: {
+            fontFamily: 'DynaPuff, cursive',
+            color: '#d4a373'
+          }
         }
       },
       yaxis: {
@@ -353,12 +390,20 @@
           text: 'Sales Amount (₱)'
         },
         labels: {
-          formatter: (value) => `₱${value.toFixed(2)}`
+          formatter: (value) => `₱${value.toFixed(2)}`,
+          style: {
+            fontFamily: 'DynaPuff, cursive',
+            color: '#d4a373'
+          }
         }
       },
       title: {
         text: 'Total Sales per Day',
-        align: 'center'
+        align: 'center',
+        style: {
+          fontFamily: 'DynaPuff, cursive',
+          color: '#d4a373'
+        }
       },
       grid: {
         borderColor: '#e0e0e0',
@@ -384,7 +429,9 @@
         height: 350,
         toolbar: {
           show: true
-        }
+        },
+        fontFamily: 'DynaPuff, cursive',
+        color: '#d4a373'
       },
       stroke: {
         curve: 'smooth',
@@ -394,6 +441,12 @@
         type: 'category',
         title: {
           text: 'Date'
+        },
+        labels: {
+          style: {
+            fontFamily: 'DynaPuff, cursive',
+            color: '#d4a373'
+          }
         }
       },
       yaxis: {
@@ -401,12 +454,20 @@
           text: 'Sales Amount (₱)'
         },
         labels: {
-          formatter: (value) => `₱${value.toFixed(2)}`
+          formatter: (value) => `₱${value.toFixed(2)}`,
+          style: {
+            fontFamily: 'DynaPuff, cursive',
+            color: '#d4a373'
+          }
         }
       },
       title: {
         text: 'Sales per Product per Day',
-        align: 'center'
+        align: 'center',
+        style: {
+          fontFamily: 'DynaPuff, cursive',
+          color: '#d4a373'
+        }
       },
       grid: {
         borderColor: '#e0e0e0',
@@ -664,12 +725,12 @@
 
 <Header {y} {innerHeight} />
 
-<div class="content">
+<div class="content ">
   <div class="sales-container">
-    <h2 class="text-2xl font-bold mb-4">Sales History</h2>
+    <h2 class="text-2xl font-bold mb-4 text-[#d4a373]">Sales History</h2>
     
     <!-- Charts Section -->
-    <div class="charts-container grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class=" charts-container grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
       <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
         <div id="salesPerPeriodChart"></div>
       </div>
@@ -759,23 +820,23 @@
     </div>
 
     <!-- Results Count -->
-    <div class="mb-4 text-gray-600">
+    <div class="mb-4 text-[#d4a373] ">
       Showing {filteredSalesData.length} of {salesData.length} records
     </div>
 
     <!-- Table -->
     <div class="overflow-x-auto">
-      <table class="min-w-full bg-white rounded-lg overflow-hidden">
+      <table class="min-w-full bg-white rounded-lg overflow-hidden ">
         <thead class="bg-gray-100">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Staff</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Product</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Quantity</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Customer Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Amount Paid</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Total Amount</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Date</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -813,9 +874,16 @@
 </div>
 
 <style>
+  :global(body) {
+    font-family: 'DynaPuff', cursive;
+    
+  }
+
   .content {
     margin-top: 4rem;
     padding: 2rem;
+    font-family: 'DynaPuff', cursive;
+
   }
 
   .sales-container {
@@ -823,6 +891,8 @@
     border-radius: 0.5rem;
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-family: 'DynaPuff', cursive;
+    
   }
 
   /* Make table header sticky */
@@ -830,6 +900,17 @@
     position: sticky;
     top: 0;
     z-index: 1;
+    font-family: 'DynaPuff', cursive;
+  }
+
+  tbody {
+    font-family: 'DynaPuff', cursive;
+  }
+
+  .chart-wrapper {
+    min-height: 400px;
+    font-family: 'DynaPuff', cursive;
+
   }
 
   /* Add some responsive styles */
@@ -845,9 +926,5 @@
     .filters > * {
       width: 100%;
     }
-  }
-
-  .chart-wrapper {
-    min-height: 400px;
   }
 </style>

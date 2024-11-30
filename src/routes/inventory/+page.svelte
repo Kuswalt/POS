@@ -589,7 +589,7 @@
     }
     
     .details button {
-        background-color: #4CAF50;
+        background-color: #d4a373;
         color: white;
     }
     
@@ -852,18 +852,19 @@
     td.flex {
         display: flex;
         gap: 4px;
-        justify-content: flex-start;
+        justify-content: center;
         align-items: center;
         flex-wrap: wrap;
     }
     
     td.flex button {
-        font-size: 0.75rem; /* 12px */
-        padding: 0.375rem 0.5rem; /* 6px 8px */
+        font-size: 0.75rem;
+        padding: 0.375rem 0.5rem;
         min-width: auto;
-        flex: 1;
+        flex: 0 1 auto;
         white-space: nowrap;
         max-width: fit-content;
+        margin: 0 2px;
     }
     
     @media screen and (max-width: 768px) {
@@ -877,12 +878,14 @@
         td.flex {
             padding: 4px;
             min-width: 120px;
+            justify-content: center;
         }
     
         td.flex button {
             font-size: 0.7rem;
             padding: 4px 6px;
             margin: 2px;
+            text-align: center;
         }
     
         /* Adjust the "Used In Products" button specifically */
@@ -964,5 +967,74 @@
             margin: 10px;
             padding: 1rem;
         }
+    }
+    
+    /* Table styles */
+    table {
+        min-width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        text-align: center; /* Center align all table content */
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+
+    /* Button styles with new colors */
+    td button:first-child {
+        background-color: #faedcd;
+        color: #333;
+    }
+
+    td button:first-child:hover {
+        background-color: #e9edc9;
+    }
+
+    td button:nth-child(2) {
+        background-color: #ccd5ae;
+        color: #333;
+    }
+
+    td button:nth-child(2):hover {
+        background-color: #bac2a1;
+    }
+
+    td button:last-child {
+        background-color: #faedcd;
+        color: #333;
+    }
+
+    td button:last-child:hover {
+        background-color: #e9edc9;
+    }
+
+    /* Modal scrollbar styles */
+    .modal-content {
+        scrollbar-width: thin;
+        scrollbar-color: #d4a373 #faedcd;
+    }
+
+    .modal-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .modal-content::-webkit-scrollbar-track {
+        background: #faedcd;
+        border-radius: 3px;
+    }
+
+    .modal-content::-webkit-scrollbar-thumb {
+        background: #d4a373;
+        border-radius: 3px;
+    }
+
+    /* Stock table scrollbar */
+    .stock-table::-webkit-scrollbar-thumb {
+        background: #d4a373;
+    }
+
+    .stock-table::-webkit-scrollbar-track {
+        background: #faedcd;
     }
 </style>
