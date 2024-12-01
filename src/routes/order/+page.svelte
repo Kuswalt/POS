@@ -342,7 +342,7 @@
     </div>
 
     <!-- Desktop Cart -->
-    <div class="hidden md:block">
+    <div class="cart-container hidden md:block">
       <Cart 
         {cartItems} 
         {userId}
@@ -438,8 +438,8 @@
 
   .search-input:focus {
     outline: none;
-    border-color: #47cb50;
-    box-shadow: 0 0 0 3px rgba(71, 203, 80, 0.1);
+    border-color: #d4a373;
+    box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.1);
   }
 
   .category-tabs {
@@ -458,7 +458,7 @@
 
   .category-tab {
     padding: 0.5rem 1rem;
-    background: #f3f4f6;
+    background: #faedcd;
     border: none;
     border-radius: 0.5rem;
     white-space: nowrap;
@@ -469,11 +469,12 @@
   }
 
   .category-tab:hover {
-    background: #e5e7eb;
+    background: #d4a373;
+    color: white;
   }
 
   .category-tab.active {
-    background: #47cb50;
+    background: #d4a373;
     color: white;
   }
 
@@ -492,8 +493,9 @@
     height: 100%;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #47cb50 #f5f5f5;
-
+    scrollbar-color:  #fefae0;
+    scrollbar-color: #fefae0 #fefae0;
+    transition: margin-right 0.3s ease;
   }
 
   .main-content::-webkit-scrollbar {
@@ -501,11 +503,11 @@
   }
 
   .main-content::-webkit-scrollbar-track {
-    background: #f5f5f5;
+    background: #faedcd;
   }
 
   .main-content::-webkit-scrollbar-thumb {
-    background: #47cb50;
+    background: #fefae0;
     border-radius: 4px;
   }
 
@@ -514,7 +516,7 @@
     overflow-y: auto;
     min-height: 0;
     scrollbar-width: thin; /* Firefox */
-    scrollbar-color: #47cb50 #f5f5f5; /* Firefox */
+    scrollbar-color: #fefae0 #fefae0; /* Firefox */
   }
 
   .products-container::-webkit-scrollbar {
@@ -522,11 +524,11 @@
   }
 
   .products-container::-webkit-scrollbar-track {
-    background: #f5f5f5;
+    background: #faedcd;
   }
 
   .products-container::-webkit-scrollbar-thumb {
-    background: #47cb50;
+    background: #d4a373;
     border-radius: 4px;
   }
 
@@ -534,27 +536,8 @@
     padding: 1rem;
   }
 
-  .category-filter {
-    display: flex;
-    gap: 0.5rem;
-    padding: 1rem;
-    overflow-x: auto;
-    background: white;
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
-  }
 
-  .category-btn {
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    background: #f3f4f6;
-    white-space: nowrap;
-  }
 
-  .category-btn.active {
-    background: #47cb50;
-    color: white;
-  }
 
   .product-card {
     cursor: pointer;
@@ -589,21 +572,21 @@
   .size-option {
     width: 100%;
     padding: 1rem;
-    background: #f3f4f6;
+    background: #faedcd;
     border-radius: 0.5rem;
     text-align: center;
     transition: background-color 0.2s;
   }
 
   .size-option:hover {
-    background: #47cb50;
+    background: #d4a373;
     color: white;
   }
 
   .container {
     width: 100%;
     height: 100vh;
-    background-color: #f5f5f5;
+    background-color: #fefae0;
     overflow: hidden;
   }
 
@@ -622,7 +605,7 @@
     height: 100%;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #47cb50 #f5f5f5;
+    scrollbar-color: #fefae0 #fefae0;
     margin-top: 20px;
   }
 
@@ -694,5 +677,77 @@
 
   .close-modal-btn:hover {
     color: #000;
+  }
+
+  .cart-container {
+    position: fixed;
+    right: 0;
+    top: 4rem;
+    width: 400px;
+    height: calc(100vh - 4rem);
+    background: #fefae0;
+    border-left: 1px solid #faedcd;
+    overflow-y: auto;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    transition: width 0.3s ease;
+  }
+
+  /* Desktop layout */
+  @media (min-width: 1401px) {
+    .main-content {
+      margin-right: 100px;
+    }
+  }
+
+  /* Large tablets and small desktops */
+  @media (max-width: 1400px) and (min-width: 1024px) {
+    .cart-container {
+      width: 350px;
+    }
+    .main-content {
+      margin-right: 100px;
+    }
+  }
+
+  /* Tablets */
+  @media (max-width: 1023px) and (min-width: 768px) {
+    .cart-container {
+      width: 300px;
+    }
+    .main-content {
+      margin-right: 200px;
+    }
+  }
+
+  /* Mobile devices */
+  @media (max-width: 767px) {
+    .cart-container {
+      display: none;
+    }
+    .main-content {
+      margin-right: 0;
+      padding: 0.5rem;
+    }
+    .cart-container.mobile-visible {
+      display: block;
+      width: 100%;
+      z-index: 50;
+    }
+  }
+
+  /* Responsive grid for products */
+  :global(.grid-cols-3) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    :global(.grid-cols-3) {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.75rem;
+      padding: 0.5rem;
+    }
   }
 </style>
