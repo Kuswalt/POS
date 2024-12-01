@@ -7,31 +7,32 @@ header('Content-Type: application/json');
 class Update {
     public function updateItemStock($data) {
         global $conn;
-        $inventory_id = $data['inventory_id'];
-        $stock_quantity = $data['stock_quantity'];
-
-        $sql = "UPDATE inventory SET stock_quantity = :stock_quantity, last_updated = NOW() WHERE inventory_id = :inventory_id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':inventory_id', $inventory_id);
-        $stmt->bindParam(':stock_quantity', $stock_quantity);
-
         try {
-            $stmt->execute();
+            $conn->beginTransaction();
             
-            // Fetch the updated record to get the new timestamp
-            $sql = "SELECT last_updated FROM inventory WHERE inventory_id = :inventory_id";
+            $sql = "UPDATE inventory 
+                    SET stock_quantity = :stock_quantity,
+                        unit_of_measure = :unit_of_measure 
+                    WHERE inventory_id = :inventory_id";
+            
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':inventory_id', $inventory_id);
+            $stmt->bindParam(':inventory_id', $data['inventory_id']);
+            $stmt->bindParam(':stock_quantity', $data['stock_quantity']);
+            $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
             $stmt->execute();
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
+            $conn->commit();
             return [
-                "status" => true, 
-                "message" => "Item stock updated successfully",
-                "last_updated" => $result['last_updated']
+                "status" => true,
+                "message" => "Stock updated successfully"
             ];
+            
         } catch (PDOException $e) {
-            return ["status" => false, "message" => "Failed to update item stock: " . $e->getMessage()];
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to update stock: " . $e->getMessage()
+            ];
         }
     }
 

@@ -15,6 +15,7 @@
       quantity_needed: number;
       unit_of_measure: string;
       stock_quantity: number;
+      stock_unit_of_measure: string;
     };
   
     export let productId: number;
@@ -71,6 +72,11 @@
         return;
       }
   
+      if (!selectedIngredient || !areUnitsCompatible(selectedIngredient.unit_of_measure, newIngredient.unit_of_measure)) {
+        alert('Invalid unit of measure selection');
+        return;
+      }
+  
       try {
         const response = await fetch('/api/add-product-ingredient', {
           method: 'POST',
@@ -81,7 +87,7 @@
             product_id: productId,
             inventory_id: newIngredient.inventory_id,
             quantity_needed: newIngredient.quantity_needed,
-            unit_of_measure: selectedIngredient?.unit_of_measure || 'pieces'
+            unit_of_measure: newIngredient.unit_of_measure
           })
         });
   
@@ -124,6 +130,11 @@
     }
   
     async function updateIngredientQuantity(ingredient: Recipe) {
+      if (!areUnitsCompatible(ingredient.unit_of_measure, editUnitOfMeasure)) {
+        alert('Invalid unit of measure selection');
+        return;
+      }
+  
       const response = await fetch('/api/update-product-ingredient', {
         method: 'PUT',
         headers: {
@@ -155,6 +166,34 @@
     const unitOptions: UnitOfMeasure[] = ['pieces', 'grams', 'kilograms', 'milliliters', 'liters', 'cups', 'tablespoons', 'teaspoons'];
   
     let editUnitOfMeasure: UnitOfMeasure = 'pieces';
+  
+    type UnitGroup = 'volume' | 'mass' | 'count';
+  
+    const unitGroups: Record<UnitOfMeasure, UnitGroup> = {
+      pieces: 'count',
+      grams: 'mass',
+      kilograms: 'mass',
+      milliliters: 'volume',
+      liters: 'volume',
+      cups: 'volume',
+      tablespoons: 'volume',
+      teaspoons: 'volume'
+    };
+  
+    const conversionFactors: Record<UnitOfMeasure, number> = {
+      pieces: 1,
+      grams: 1,
+      kilograms: 1000, // in grams
+      milliliters: 1,
+      liters: 1000, // in milliliters
+      cups: 236.588, // in milliliters
+      tablespoons: 14.787, // in milliliters
+      teaspoons: 4.929 // in milliliters
+    };
+  
+    function areUnitsCompatible(unit1: UnitOfMeasure, unit2: UnitOfMeasure): boolean {
+      return unitGroups[unit1] === unitGroups[unit2];
+    }
   </script>
   
   <div class="recipe-manager">
@@ -195,9 +234,12 @@
             <select 
               bind:value={newIngredient.unit_of_measure}
               class="p-2 border rounded-md"
+              disabled={!selectedIngredient}
             >
               {#each unitOptions as unit}
-                <option value={unit}>{unit}</option>
+                {#if !selectedIngredient || areUnitsCompatible(selectedIngredient.unit_of_measure, unit)}
+                  <option value={unit}>{unit}</option>
+                {/if}
               {/each}
             </select>
             <button 
@@ -233,9 +275,10 @@
               <thead class="sticky top-0 bg-white">
                 <tr>
                   <th class="text-left py-2">Ingredient</th>
-                  <th class="text-left py-2">Qty</th>
-                  <th class="text-left py-2">Unit</th>
+                  <th class="text-left py-2">Recipe Qty</th>
+                  <th class="text-left py-2">Recipe Unit</th>
                   <th class="text-left py-2">Stock</th>
+                  <th class="text-left py-2">Stock Unit</th>
                   <th class="text-center py-2">Actions</th>
                 </tr>
               </thead>
@@ -258,7 +301,9 @@
                             class="p-2 border rounded"
                           >
                             {#each unitOptions as unit}
-                              <option value={unit}>{unit}</option>
+                              {#if areUnitsCompatible(ingredient.stock_unit_of_measure, unit)}
+                                <option value={unit}>{unit}</option>
+                              {/if}
                             {/each}
                           </select>
                           <button 
@@ -280,6 +325,7 @@
                     </td>
                     <td class="py-2">{ingredient.unit_of_measure}</td>
                     <td class="py-2">{ingredient.stock_quantity}</td>
+                    <td class="py-2">{ingredient.stock_unit_of_measure}</td>
                     <td class="py-2 flex justify-center gap-2">
                       <button
                         on:click={() => {

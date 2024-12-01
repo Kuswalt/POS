@@ -255,11 +255,16 @@ class Get {
         global $conn;
         
         try {
-            $sql = "SELECT pi.product_ingredient_id, pi.inventory_id, 
-                    i.item_name as ingredient_name, pi.quantity_needed,
-                    i.stock_quantity, i.unit_of_measure
-                    FROM product_ingredients pi 
-                    JOIN inventory i ON i.inventory_id = pi.inventory_id 
+            $sql = "SELECT 
+                    pi.product_ingredient_id,
+                    pi.inventory_id,
+                    i.item_name as ingredient_name,
+                    pi.quantity_needed,
+                    pi.unit_of_measure,
+                    i.stock_quantity,
+                    i.unit_of_measure as stock_unit_of_measure
+                    FROM product_ingredients pi
+                    JOIN inventory i ON pi.inventory_id = i.inventory_id
                     WHERE pi.product_id = :product_id";
             
             $stmt = $conn->prepare($sql);

@@ -248,7 +248,9 @@ try {
                     break;
                 case 'update-item-stock':
                     $data = json_decode(file_get_contents('php://input'), true);
-                    echo json_encode($update->updateItemStock($data));
+                    $update = new Update();
+                    $result = $update->updateItemStock($data);
+                    echo json_encode($result);
                     break;
                 default:
                     $data = json_decode(file_get_contents("php://input"), true);
