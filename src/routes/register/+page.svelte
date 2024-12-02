@@ -43,9 +43,23 @@
         }
     }
 </script>
+<style>
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }s
+    }
+
+    .animate-float {
+        animation: float 3s ease-in-out infinite;
+    }
+</style>
 
 <div class="flex flex-col items-center w-full px-4 pt-[5vh] bg-gradient-to-b from-[#faedcd] to-white min-h-screen">
-    <div class="logo-img mx-auto mb-2 mt-8 relative">
+    <div class="logo-img mx-auto mb-2 mt-8 relative animate-float">
         <div class="absolute inset-0 blur-xl bg-[#d4a373]/30 rounded-full"></div>
         <img 
             src="/images/last.png" 
