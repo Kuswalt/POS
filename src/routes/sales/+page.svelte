@@ -4,6 +4,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import * as XLSX from 'xlsx';
+  import { ApiService } from '$lib/services/api';
+  import { userStore } from '$lib/auth';
 
   let y = 0;
   let innerWidth = 0;
@@ -230,9 +232,7 @@
         height: 350,
         toolbar: {
           show: true
-        },
-        fontFamily: 'DynaPuff, cursive',
-        color: '#d4a373'
+        }
       },
       stroke: {
         curve: 'smooth',
@@ -242,12 +242,6 @@
         categories: periodData.x,
         title: {
           text: 'Period'
-        },
-        labels: {
-          style: {
-            fontFamily: 'DynaPuff, cursive',
-            color: '#d4a373'
-          }
         }
       },
       yaxis: {
@@ -255,20 +249,12 @@
           text: 'Sales Amount (₱)'
         },
         labels: {
-          formatter: (value) => `₱${value.toFixed(2)}`,
-          style: {
-            fontFamily: 'DynaPuff, cursive',
-            color: '#d4a373'
-          }
+          formatter: (value) => `₱${value.toFixed(2)}`
         }
       },
       title: {
         text: 'Total Sales per Month',
-        align: 'center',
-        style: {
-          fontFamily: 'DynaPuff, cursive',
-          color: '#d4a373'
-        }
+        align: 'center'
       },
       grid: {
         borderColor: '#e0e0e0',
@@ -295,8 +281,7 @@
         height: 350,
         toolbar: {
           show: true
-        },
-        fontFamily: 'DynaPuff, cursive',
+        }
       },
       stroke: {
         curve: 'smooth',
@@ -306,11 +291,6 @@
         type: 'category',
         title: {
           text: 'Period'
-        },
-        labels: {
-          style: {
-            fontFamily: 'DynaPuff, cursive'
-          }
         }
       },
       yaxis: {
@@ -318,19 +298,12 @@
           text: 'Sales Amount (₱)'
         },
         labels: {
-          formatter: (value) => `₱${value.toFixed(2)}`,
-          style: {
-            fontFamily: 'DynaPuff, cursive'
-          }
+          formatter: (value) => `₱${value.toFixed(2)}`
         }
       },
       title: {
         text: 'Sales per Product per Month',
-        align: 'center',
-        style: {
-          fontFamily: 'DynaPuff, cursive',
-          color: '#d4a373'
-        }
+        align: 'center'
       },
       grid: {
         borderColor: '#e0e0e0',
@@ -365,9 +338,7 @@
         height: 350,
         toolbar: {
           show: true
-        },
-        fontFamily: 'DynaPuff, cursive', 
-        color: '#d4a373'
+        }
       },
       stroke: {
         curve: 'smooth',
@@ -377,12 +348,6 @@
         categories: dailyData.x,
         title: {
           text: 'Date'
-        },
-        labels: {
-          style: {
-            fontFamily: 'DynaPuff, cursive',
-            color: '#d4a373'
-          }
         }
       },
       yaxis: {
@@ -390,20 +355,12 @@
           text: 'Sales Amount (₱)'
         },
         labels: {
-          formatter: (value) => `₱${value.toFixed(2)}`,
-          style: {
-            fontFamily: 'DynaPuff, cursive',
-            color: '#d4a373'
-          }
+          formatter: (value) => `₱${value.toFixed(2)}`
         }
       },
       title: {
         text: 'Total Sales per Day',
-        align: 'center',
-        style: {
-          fontFamily: 'DynaPuff, cursive',
-          color: '#d4a373'
-        }
+        align: 'center'
       },
       grid: {
         borderColor: '#e0e0e0',
@@ -429,9 +386,7 @@
         height: 350,
         toolbar: {
           show: true
-        },
-        fontFamily: 'DynaPuff, cursive',
-        color: '#d4a373'
+        }
       },
       stroke: {
         curve: 'smooth',
@@ -441,12 +396,6 @@
         type: 'category',
         title: {
           text: 'Date'
-        },
-        labels: {
-          style: {
-            fontFamily: 'DynaPuff, cursive',
-            color: '#d4a373'
-          }
         }
       },
       yaxis: {
@@ -454,20 +403,12 @@
           text: 'Sales Amount (₱)'
         },
         labels: {
-          formatter: (value) => `₱${value.toFixed(2)}`,
-          style: {
-            fontFamily: 'DynaPuff, cursive',
-            color: '#d4a373'
-          }
+          formatter: (value) => `₱${value.toFixed(2)}`
         }
       },
       title: {
         text: 'Sales per Product per Day',
-        align: 'center',
-        style: {
-          fontFamily: 'DynaPuff, cursive',
-          color: '#d4a373'
-        }
+        align: 'center'
       },
       grid: {
         borderColor: '#e0e0e0',
@@ -619,42 +560,31 @@
     printWindow.document.close();
   }
 
-  // Add this function to handle order deletion
-  async function deleteOrder(orderId) {
+  // Update the deleteOrder function
+  async function deleteOrder(orderId: number) {
     if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
       return;
     }
 
     try {
-      const response = await fetch('/api/delete-order', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ order_id: orderId })
+      const response = await ApiService.delete('delete-order', {
+        order_id: orderId,
+        user_id: $userStore.userId
       });
 
-      const result = await response.json();
-      
-      if (result.status) {
-        // Fetch fresh data from the server instead of filtering locally
-        const refreshResponse = await fetch('/api/get-sales-data');
-        const refreshResult = await refreshResponse.json();
-        
-        if (refreshResult.status) {
-          // Update all data states
-          salesData = refreshResult.data;
-          chartData = refreshResult.chartData;
-          dailyChartData = refreshResult.dailyChartData;
+      if (response.status) {
+        // Refresh the sales data
+        const refreshResponse = await ApiService.get('get-sales-data');
+        if (refreshResponse.status) {
+          salesData = refreshResponse.data;
+          chartData = refreshResponse.chartData;
+          dailyChartData = refreshResponse.dailyChartData;
           filteredSalesData = salesData;
-          
-          // Reinitialize charts with new data
           await initializeCharts();
-          
           alert('Order deleted successfully');
         }
       } else {
-        alert('Failed to delete order: ' + result.message);
+        alert('Failed to delete order: ' + response.message);
       }
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -662,56 +592,121 @@
     }
   }
 
+  // Update deleteAllOrders to only delete filtered data
   async function deleteAllOrders() {
-    if (!confirm('Are you sure you want to delete ALL orders? This action cannot be undone!')) {
-        return;
+    if (filteredSalesData.length === 0) {
+      alert('No data to delete');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete ALL filtered orders? This action cannot be undone!')) {
+      return;
     }
 
     try {
-        const response = await fetch('/api/delete-all-orders', {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+      const orderIds = filteredSalesData.map(sale => sale.order_id);
+      const response = await ApiService.delete('delete-filtered-orders', {
+        order_ids: orderIds,
+        user_id: $userStore.userId
+      });
 
-        const result = await response.json();
-        
-        if (result.status) {
-            // Fetch fresh data from the server instead of clearing locally
-            const refreshResponse = await fetch('/api/get-sales-data');
-            const refreshResult = await refreshResponse.json();
-            
-            if (refreshResult.status) {
-                // Update all data states
-                salesData = refreshResult.data;
-                chartData = refreshResult.chartData;
-                dailyChartData = refreshResult.dailyChartData;
-                filteredSalesData = salesData;
-                
-                // Reinitialize charts with new data
-                await initializeCharts();
-                
-                alert('All orders deleted successfully');
-            }
-        } else {
-            alert('Failed to delete orders: ' + result.message);
+      if (response.status) {
+        // Refresh the sales data
+        const refreshResponse = await ApiService.get('get-sales-data');
+        if (refreshResponse.status) {
+          salesData = refreshResponse.data;
+          chartData = refreshResponse.chartData;
+          dailyChartData = refreshResponse.dailyChartData;
+          filteredSalesData = salesData;
+          await initializeCharts();
+          alert('Selected orders deleted successfully');
         }
+      } else {
+        alert('Failed to delete orders: ' + response.message);
+      }
     } catch (error) {
-        console.error('Error deleting orders:', error);
-        alert('Error deleting orders. Please try again.');
+      console.error('Error deleting orders:', error);
+      alert('Error deleting orders. Please try again.');
+    }
+  }
+
+  // Add this function to handle archiving
+  async function archiveSale(orderId: number) {
+    if (!confirm('Are you sure you want to archive this sale? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await ApiService.post('archive-sales', {
+        order_id: orderId,
+        user_id: $userStore.userId
+      });
+
+      if (response.status) {
+        // Refresh the sales data
+        const refreshResponse = await ApiService.get('get-sales-data');
+        if (refreshResponse.status) {
+          salesData = refreshResponse.data;
+          chartData = refreshResponse.chartData;
+          dailyChartData = refreshResponse.dailyChartData;
+          filteredSalesData = salesData;
+          await initializeCharts();
+          alert('Sale archived successfully');
+        }
+      } else {
+        alert('Failed to archive sale: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error archiving sale:', error);
+      alert('Error archiving sale. Please try again.');
+    }
+  }
+
+  // Add this function to handle archiving filtered data
+  async function archiveFilteredSales() {
+    if (filteredSalesData.length === 0) {
+      alert('No data to archive');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to archive all filtered sales? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const orderIds = filteredSalesData.map(sale => sale.order_id);
+      const response = await ApiService.post('archive-filtered-sales', {
+        order_ids: orderIds,
+        user_id: $userStore.userId
+      });
+
+      if (response.status) {
+        // Refresh the sales data
+        const refreshResponse = await ApiService.get('get-sales-data');
+        if (refreshResponse.status) {
+          salesData = refreshResponse.data;
+          chartData = refreshResponse.chartData;
+          dailyChartData = refreshResponse.dailyChartData;
+          filteredSalesData = salesData;
+          await initializeCharts();
+          alert('Selected sales archived successfully');
+        }
+      } else {
+        alert('Failed to archive sales: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error archiving sales:', error);
+      alert('Error archiving sales. Please try again.');
     }
   }
 
   onMount(async () => {
     try {
-      const response = await fetch('/api/get-sales-data');
-      const result = await response.json();
-      
+      const result = await ApiService.get<SalesData>('get-sales-data');
       if (result.status) {
         salesData = result.data;
         chartData = result.chartData;
-        dailyChartData = result.dailyChartData;  // Store the daily chart data
+        dailyChartData = result.dailyChartData;
         filteredSalesData = salesData;
         await initializeCharts();
       } else {
@@ -725,12 +720,12 @@
 
 <Header {y} {innerHeight} />
 
-<div class="content ">
+<div class="content">
   <div class="sales-container">
-    <h2 class="text-2xl font-bold mb-4 text-[#d4a373]">Sales History</h2>
+    <h2 class="text-2xl font-bold mb-4">Sales History</h2>
     
     <!-- Charts Section -->
-    <div class=" charts-container grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="charts-container grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
       <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
         <div id="salesPerPeriodChart"></div>
       </div>
@@ -814,29 +809,36 @@
           on:click={deleteAllOrders}
           class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
         >
-          Delete All Orders
+          Delete Filtered Orders
+        </button>
+
+        <button
+          on:click={archiveFilteredSales}
+          class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"
+        >
+          Archive Filtered Sales
         </button>
       </div>
     </div>
 
     <!-- Results Count -->
-    <div class="mb-4 text-[#d4a373] ">
+    <div class="mb-4 text-gray-600">
       Showing {filteredSalesData.length} of {salesData.length} records
     </div>
 
     <!-- Table -->
     <div class="overflow-x-auto">
-      <table class="min-w-full bg-white rounded-lg overflow-hidden ">
+      <table class="min-w-full bg-white rounded-lg overflow-hidden">
         <thead class="bg-gray-100">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Staff</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Product</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Quantity</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Customer Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Amount Paid</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Total Amount</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Date</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-[#d4a373] uppercase tracking-wider">Actions</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -859,9 +861,15 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                   <button
                     on:click={() => deleteOrder(sale.order_id)}
-                    class="text-red-600 hover:text-red-900 font-medium"
+                    class="text-red-600 hover:text-red-900 font-medium mr-2"
                   >
                     Delete
+                  </button>
+                  <button
+                    on:click={() => archiveSale(sale.order_id)}
+                    class="text-blue-600 hover:text-blue-900 font-medium"
+                  >
+                    Archive
                   </button>
                 </td>
               </tr>
@@ -874,25 +882,18 @@
 </div>
 
 <style>
-  :global(body) {
-    font-family: 'DynaPuff', cursive;
-    
-  }
-
   .content {
     margin-top: 4rem;
     padding: 2rem;
+    background-color: #fefae0;
     font-family: 'DynaPuff', cursive;
-
   }
 
   .sales-container {
-    background: white;
+    background: #faedcd;
     border-radius: 0.5rem;
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    font-family: 'DynaPuff', cursive;
-    
   }
 
   /* Make table header sticky */
@@ -900,17 +901,8 @@
     position: sticky;
     top: 0;
     z-index: 1;
-    font-family: 'DynaPuff', cursive;
-  }
-
-  tbody {
-    font-family: 'DynaPuff', cursive;
-  }
-
-  .chart-wrapper {
-    min-height: 400px;
-    font-family: 'DynaPuff', cursive;
-
+    background-color: #d4a373;
+    color: white;
   }
 
   /* Add some responsive styles */
@@ -927,4 +919,19 @@
       width: 100%;
     }
   }
+
+  .chart-wrapper {
+    min-height: 400px;
+    background-color: white; /* Keep chart background white for better visibility */
+  }
+
+  /* Add global font */
+  :global(body) {
+    font-family: 'DynaPuff', cursive;
+  }
 </style>
+
+<!-- Add font import in the head of the document -->
+<svelte:head>
+  <link href="https://fonts.googleapis.com/css2?family=DynaPuff&display=swap" rel="stylesheet">
+</svelte:head>

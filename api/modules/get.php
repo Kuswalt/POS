@@ -16,8 +16,15 @@ class Get {
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             foreach ($items as &$item) {
-                if (isset($item['image']) && is_resource($item['image'])) {
-                    $item['image'] = stream_get_contents($item['image']);
+                if (isset($item['image'])) {
+                    // Convert BLOB to string if needed
+                    if (is_resource($item['image'])) {
+                        $item['image'] = stream_get_contents($item['image']);
+                    }
+                    // Ensure image path is properly formatted
+                    if (!empty($item['image'])) {
+                        $item['image'] = trim($item['image']);
+                    }
                 }
             }
             
@@ -159,44 +166,98 @@ class Get {
             ];
         }
     }
-    public function checkIngredientAvailability($product_id, $requested_quantity) {
+    public function checkIngredientAvailability($product_id, $quantity = 1) {
         global $conn;
         
+        // Log the input parameters
+        error_log("Checking ingredient availability for Product ID: $product_id, Quantity: $quantity");
+        
         try {
-            $sql = "SELECT i.item_name, i.stock_quantity, i.unit_of_measure as stock_unit,
-                    pi.quantity_needed, pi.unit_of_measure as recipe_unit
-                    FROM inventory i 
-                    JOIN product_ingredients pi ON i.inventory_id = pi.inventory_id 
+            // First check if the product has any recipe/ingredients defined
+            $checkRecipeSql = "SELECT COUNT(*) as recipe_count 
+                              FROM product_ingredients 
+                              WHERE product_id = :product_id";
+            $stmt = $conn->prepare($checkRecipeSql);
+            $stmt->bindParam(':product_id', $product_id);
+            $stmt->execute();
+            $recipeResult = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Log recipe count
+            error_log("Recipe count for Product ID $product_id: " . $recipeResult['recipe_count']);
+
+            // If no recipe exists, return false
+            if ($recipeResult['recipe_count'] == 0) {
+                error_log("No recipe found for Product ID: $product_id");
+                return [
+                    "status" => true,
+                    "is_available" => false,
+                    "message" => "No recipe defined for this product",
+                    "max_quantity" => 0
+                ];
+            }
+
+            // Detailed ingredient availability check
+            $sql = "SELECT 
+                        i.inventory_id,
+                        i.item_name,
+                        i.stock_quantity, 
+                        pi.quantity_needed,
+                        FLOOR(i.stock_quantity / pi.quantity_needed) as possible_quantity
+                    FROM product_ingredients pi
+                    JOIN inventory i ON i.inventory_id = pi.inventory_id
                     WHERE pi.product_id = :product_id";
-            
+                
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':product_id', $product_id);
             $stmt->execute();
-            
             $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $max_possible_quantity = PHP_FLOAT_MAX;
             
+            // Log ingredient details
+            error_log("Ingredients for Product ID $product_id:");
             foreach ($ingredients as $ingredient) {
-                $convertedQuantity = $this->convertUnits(
-                    $ingredient['quantity_needed'],
-                    $ingredient['recipe_unit'],
-                    $ingredient['stock_unit']
-                );
+                error_log(json_encode([
+                    "item_name" => $ingredient['item_name'],
+                    "stock_quantity" => $ingredient['stock_quantity'],
+                    "quantity_needed" => $ingredient['quantity_needed'],
+                    "possible_quantity" => $ingredient['possible_quantity']
+                ]));
+            }
+
+            $maxQuantity = PHP_INT_MAX;
+            $isAvailable = true;
+
+            foreach ($ingredients as $ingredient) {
+                $possibleQuantity = floor($ingredient['stock_quantity'] / $ingredient['quantity_needed']);
+                $maxQuantity = min($maxQuantity, $possibleQuantity);
                 
-                // Calculate how many products can be made with this ingredient
-                $possible_quantity = floor($ingredient['stock_quantity'] / $convertedQuantity);
-                $max_possible_quantity = min($max_possible_quantity, $possible_quantity);
+                if ($possibleQuantity < $quantity) {
+                    $isAvailable = false;
+                    error_log("Insufficient ingredient: " . $ingredient['item_name'] . 
+                              ", Stock: " . $ingredient['stock_quantity'] . 
+                              ", Needed: " . ($ingredient['quantity_needed'] * $quantity) . 
+                              ", Possible Quantity: " . $possibleQuantity);
+                }
             }
             
+            // Log final availability
+            error_log("Availability for Product ID $product_id: " . 
+                      ($isAvailable ? "Available" : "Not Available") . 
+                      ", Max Quantity: $maxQuantity");
+
             return [
                 "status" => true,
-                "max_possible_quantity" => $max_possible_quantity
+                "is_available" => $isAvailable,
+                "message" => $isAvailable ? "Product available" : "Insufficient ingredients",
+                "max_quantity" => max(0, $maxQuantity)
             ];
             
         } catch (PDOException $e) {
+            error_log("Error checking ingredient availability: " . $e->getMessage());
             return [
                 "status" => false,
-                "message" => "Database error: " . $e->getMessage()
+                "is_available" => false,
+                "message" => "Error checking availability: " . $e->getMessage(),
+                "max_quantity" => 0
             ];
         }
     }
@@ -255,16 +316,11 @@ class Get {
         global $conn;
         
         try {
-            $sql = "SELECT 
-                    pi.product_ingredient_id,
-                    pi.inventory_id,
-                    i.item_name as ingredient_name,
-                    pi.quantity_needed,
-                    pi.unit_of_measure,
-                    i.stock_quantity,
-                    i.unit_of_measure as stock_unit_of_measure
-                    FROM product_ingredients pi
-                    JOIN inventory i ON pi.inventory_id = i.inventory_id
+            $sql = "SELECT pi.product_ingredient_id, pi.inventory_id, 
+                    i.item_name as ingredient_name, pi.quantity_needed,
+                    i.stock_quantity, i.unit_of_measure
+                    FROM product_ingredients pi 
+                    JOIN inventory i ON i.inventory_id = pi.inventory_id 
                     WHERE pi.product_id = :product_id";
             
             $stmt = $conn->prepare($sql);
@@ -286,11 +342,11 @@ class Get {
         global $conn;
         
         try {
-            $sql = "SELECT p.name as product_name, p.category, 
-                    pi.quantity_needed, i.unit_of_measure
+            error_log("Fetching products for inventory_id: " . $inventory_id);
+            
+            $sql = "SELECT p.name as product_name, p.category, pi.quantity_needed, pi.unit_of_measure, pi.product_ingredient_id
                     FROM product_ingredients pi 
-                    JOIN product p ON p.product_id = pi.product_id
-                    JOIN inventory i ON i.inventory_id = pi.inventory_id
+                    JOIN product p ON pi.product_id = p.product_id 
                     WHERE pi.inventory_id = :inventory_id";
             
             $stmt = $conn->prepare($sql);
@@ -298,12 +354,16 @@ class Get {
             $stmt->execute();
             
             $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("Found products: " . json_encode($products));
             
             return [
                 "status" => true,
-                "data" => $products
+                "data" => $products,
+                "message" => count($products) . " products found using this ingredient"
             ];
+            
         } catch (PDOException $e) {
+            error_log("Database error in getProductsUsingIngredient: " . $e->getMessage());
             return [
                 "status" => false,
                 "message" => "Error fetching products: " . $e->getMessage()
@@ -408,32 +468,86 @@ class Get {
         global $conn;
         
         try {
+            // First, check which products have recipes
             $placeholders = str_repeat('?,', count($product_ids) - 1) . '?';
-            $sql = "SELECT pi.product_id, pi.quantity_needed, i.stock_quantity, i.unit_of_measure
+            $recipeSql = "SELECT DISTINCT product_id 
+                          FROM product_ingredients 
+                          WHERE product_id IN ($placeholders)";
+            
+            $stmt = $conn->prepare($recipeSql);
+            $stmt->execute($product_ids);
+            $productsWithRecipes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            // Initialize all products as unavailable by default
+            $productAvailability = array_fill_keys($product_ids, [
+                'isAvailable' => false,
+                'ingredients' => [],
+                'hasRecipe' => false
+            ]);
+            
+            // Mark products with recipes and check their ingredients
+            if (!empty($productsWithRecipes)) {
+                // Create new placeholders specifically for products with recipes
+                $recipePlaceholders = str_repeat('?,', count($productsWithRecipes) - 1) . '?';
+                
+                $sql = "SELECT pi.product_id, pi.quantity_needed, i.stock_quantity, i.unit_of_measure, 
+                               i.inventory_id, i.item_name
                     FROM product_ingredients pi 
                     JOIN inventory i ON i.inventory_id = pi.inventory_id 
-                    WHERE pi.product_id IN ($placeholders)";
-            
-            $stmt = $conn->prepare($sql);
-            $stmt->execute($product_ids);
-            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Group ingredients by product_id
-            $productAvailability = [];
-            foreach ($ingredients as $ingredient) {
-                $productId = $ingredient['product_id'];
-                if (!isset($productAvailability[$productId])) {
-                    $productAvailability[$productId] = [
-                        'isAvailable' => true,
-                        'ingredients' => []
-                    ];
+                    WHERE pi.product_id IN ($recipePlaceholders)";
+                
+                $stmt = $conn->prepare($sql);
+                
+                // Debug log
+                error_log("Checking ingredients for products: " . implode(', ', $productsWithRecipes));
+                
+                // Execute with products that have recipes
+                $stmt->execute(array_values($productsWithRecipes));
+                $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Debug log
+                error_log("Found ingredients: " . json_encode($ingredients));
+                
+                // Group ingredients by product
+                $productIngredients = [];
+                foreach ($ingredients as $ingredient) {
+                    $productId = $ingredient['product_id'];
+                    if (!isset($productIngredients[$productId])) {
+                        $productIngredients[$productId] = [];
+                    }
+                    $productIngredients[$productId][] = $ingredient;
                 }
                 
-                $productAvailability[$productId]['ingredients'][] = $ingredient;
-                if ($ingredient['stock_quantity'] < $ingredient['quantity_needed']) {
-                    $productAvailability[$productId]['isAvailable'] = false;
+                // Check availability for each product with recipe
+                foreach ($productsWithRecipes as $productId) {
+                    $productAvailability[$productId]['hasRecipe'] = true;
+                    
+                    if (isset($productIngredients[$productId])) {
+                        $productAvailability[$productId]['ingredients'] = $productIngredients[$productId];
+                        $productAvailability[$productId]['isAvailable'] = true; // Start as available
+                        
+                        foreach ($productIngredients[$productId] as $ingredient) {
+                            if ($ingredient['stock_quantity'] <= 0 || 
+                                $ingredient['stock_quantity'] < $ingredient['quantity_needed']) {
+                                $productAvailability[$productId]['isAvailable'] = false;
+                                error_log(sprintf(
+                                    "Product %d marked unavailable: Ingredient %s (ID: %d) has stock %f, needs %f",
+                                    $productId,
+                                    $ingredient['item_name'],
+                                    $ingredient['inventory_id'],
+                                    $ingredient['stock_quantity'],
+                                    $ingredient['quantity_needed']
+                                ));
+                                break;
+                            }
+                        }
+                    }
                 }
             }
+            
+            // Debug logs
+            error_log("Products with recipes: " . implode(', ', $productsWithRecipes));
+            error_log("Final Availability Map: " . json_encode($productAvailability));
             
             return [
                 "status" => true,
@@ -441,9 +555,26 @@ class Get {
             ];
             
         } catch (PDOException $e) {
+            error_log("Error in getBatchProductIngredients: " . $e->getMessage());
             return [
                 "status" => false,
                 "message" => "Error fetching ingredients: " . $e->getMessage()
+            ];
+        }
+    }
+    public function getStaff() {
+        global $conn;
+        
+        try {
+            $sql = "SELECT User_id, username, role FROM user_acc ORDER BY User_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Error fetching staff: " . $e->getMessage()
             ];
         }
     }

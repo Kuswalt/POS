@@ -8,37 +8,87 @@ class Post {
  
     public function registerUser($data) {
         global $conn;
+        // Validate decrypted data
+        if (!isset($data['username']) || !isset($data['password'])) {
+            return [
+                "status" => false,
+                "message" => "Missing required fields"
+            ];
+        }
+
         $username = $data['username'];
         $password = $data['password'];
-        $role = isset($data['role']) ? $data['role'] : 0;
+        $role = isset($data['role']) ? $data['role'] : 2;
 
-        $checkUserSql = "SELECT * FROM user_acc WHERE username = :username";
-        $stmt = $conn->prepare($checkUserSql);
-        $stmt->bindParam(':username', $username);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($result) {
-            if ($result['role'] == 0) {
-                return ["status" => false, "message" => "Account is still not approved by developers or Username already taken"];
-            } else if ($result['role'] == 1) {
-                return ["status" => false, "message" => "Account Username is already used"];
-            } else {
-                return ["status" => false, "message" => "Username already taken"];
-            }
-        } else {
-            $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-            $sql = "INSERT INTO user_acc (username, password, role) VALUES (:username, :password, :role)";
-            $stmt = $conn->prepare($sql);
+        try {
+            $checkUserSql = "SELECT * FROM user_acc WHERE username = :username";
+            $stmt = $conn->prepare($checkUserSql);
             $stmt->bindParam(':username', $username);
-            $stmt->bindParam(':password', $hashedPassword);
-            $stmt->bindParam(':role', $role);
-            try {
-                $stmt->execute();
-                return ["status" => true, "message" => "Account created successfully"];
-            } catch (PDOException $e) {
-                return ["status" => false, "message" => "Account creation failed: " . $e->getMessage()];
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($result) {
+                if ($result['role'] == 0) {
+                    return [
+                        "status" => false,
+                        "message" => "Account is still not approved by developers or Username already taken"
+                    ];
+                } else if ($result['role'] == 1) {
+                    return [
+                        "status" => false,
+                        "message" => "Account Username is already used"
+                    ];
+                } else {
+                    return [
+                        "status" => false,
+                        "message" => "Username already taken"
+                    ];
+                }
+            } else {
+                // Ensure password meets minimum requirements
+                if (strlen($password) < 8) {
+                    return [
+                        "status" => false,
+                        "message" => "Password must be at least 8 characters long"
+                    ];
+                }
+
+                // Additional password validation if needed
+                if (!preg_match("/[A-Z]/", $password) || 
+                    !preg_match("/[a-z]/", $password) || 
+                    !preg_match("/[0-9]/", $password) || 
+                    !preg_match("/[!@#$%^&*(),.?\":{}|<>]/", $password)) {
+                    return [
+                        "status" => false,
+                        "message" => "Password must contain uppercase, lowercase, numbers, and special characters"
+                    ];
+                }
+
+                $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+                $sql = "INSERT INTO user_acc (username, password, role) VALUES (:username, :password, :role)";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':username', $username);
+                $stmt->bindParam(':password', $hashedPassword);
+                $stmt->bindParam(':role', $role);
+                
+                if ($stmt->execute()) {
+                    return [
+                        "status" => true,
+                        "message" => "Account created successfully",
+                        "userId" => $conn->lastInsertId()
+                    ];
+                } else {
+                    return [
+                        "status" => false,
+                        "message" => "Failed to create account"
+                    ];
+                }
             }
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Database error: " . $e->getMessage()
+            ];
         }
     }
 
@@ -47,27 +97,45 @@ class Post {
         $username = $data['username'];
         $password = $data['password'];
 
-        $sql = "SELECT * FROM user_acc WHERE username = :username";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':username', $username);
-        $stmt->execute();
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            $sql = "SELECT * FROM user_acc WHERE username = :username";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':username', $username);
+            $stmt->execute();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$user) {
-            return ["status" => false, "message" => "User not found"];
-        } else {
-            if (password_verify($password, $user['password'])) {
-                return ["status" => true, "message" => "Login successful", "userId" => $user['User_id'], "role" => $user['role']];
-            } else {
-                return ["status" => false, "message" => "Incorrect credentials"];
+            if (!$user) {
+                return ["status" => false, "message" => "User not found"];
             }
+
+            // Check if user has permission (role 0 or 1)
+            if ($user['role'] > 1) {
+                return [
+                    "status" => false, 
+                    "message" => "Your account is pending approval. Please contact an administrator."
+                ];
+            }
+
+            if (password_verify($password, $user['password'])) {
+                return [
+                    "status" => true, 
+                    "message" => "Login successful",
+                    "userId" => $user['User_id'],
+                    "username" => $user['username'],
+                    "role" => (int)$user['role']
+                ];
+            }
+            
+            return ["status" => false, "message" => "Incorrect credentials"];
+        } catch (PDOException $e) {
+            return ["status" => false, "message" => "Database error: " . $e->getMessage()];
         }
     }
 
     public function addItemStock($data) {
         global $conn;
         try {
-            // Validate required fields
+            // Validate decrypted data
             if (empty($data['item_name']) || !isset($data['stock_quantity']) || empty($data['unit_of_measure'])) {
                 return [
                     "status" => false,
@@ -134,13 +202,20 @@ class Post {
         global $conn;
         
         try {
-            // Check for existing product with same attributes
+            // Validate decrypted data
+            if (empty($data['name']) || !isset($data['price']) || empty($data['category'])) {
+                return [
+                    "status" => false,
+                    "message" => "All fields are required"
+                ];
+            }
+
+            // Check for existing product
             $sql = "SELECT * FROM product WHERE 
                     name = :name AND 
                     category = :category AND 
                     price = :price";
             
-            // Add size check only for Pizza and Drinks
             if (in_array($data['category'], ['Pizza', 'Drinks'])) {
                 $sql .= " AND size = :size";
             }
@@ -152,36 +227,36 @@ class Post {
                 ':price' => $data['price']
             ];
             
-            // Add size parameter only for Pizza and Drinks
             if (in_array($data['category'], ['Pizza', 'Drinks'])) {
-                $params[':size'] = $data['size'];
+                $params[':size'] = $data['size'] ?? 'Standard';
             }
             
             $stmt->execute($params);
-            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($existing) {
+            if ($stmt->fetch()) {
                 return [
                     "status" => false,
-                    "message" => "A similar product already exists with these details",
+                    "message" => "A similar product already exists",
                     "duplicate" => true
                 ];
             }
             
-            // If no duplicate found, proceed with insertion
+            // Insert new product
             $sql = "INSERT INTO product (name, image, price, category, size) 
                     VALUES (:name, :image, :price, :category, :size)";
             $stmt = $conn->prepare($sql);
             
-            $size = isset($data['size']) && !empty($data['size']) ? $data['size'] : 'base-size';
+            $size = $data['size'] ?? 'Standard';
+            $image = $data['image'] ?? '';
             
             $stmt->bindParam(':name', $data['name']);
-            $stmt->bindParam(':image', $data['image']);
+            $stmt->bindParam(':image', $image);
             $stmt->bindParam(':price', $data['price']);
             $stmt->bindParam(':category', $data['category']);
             $stmt->bindParam(':size', $size);
             
             $stmt->execute();
+            
             return [
                 "status" => true,
                 "message" => "Menu item added successfully",
@@ -246,7 +321,7 @@ class Post {
         try {
             $conn->beginTransaction();
             
-            // 1. First, verify stock availability for all items
+            // Verify stock availability for all items
             foreach ($data['order_items'] as $item) {
                 $sql = "SELECT pi.inventory_id, pi.quantity_needed, i.stock_quantity 
                         FROM product_ingredients pi
@@ -270,7 +345,7 @@ class Post {
                 }
             }
             
-            // 2. Create the order
+            // Create the order
             $sql = "INSERT INTO `order` (customer_id, order_date, total_amount, user_id, payment_status) 
                     VALUES (:customer_id, NOW(), :total_amount, :user_id, :payment_status)";
             $stmt = $conn->prepare($sql);
@@ -282,7 +357,7 @@ class Post {
             
             $order_id = $conn->lastInsertId();
             
-            // 3. Create order items
+            // Create order items
             foreach ($data['order_items'] as $item) {
                 $sql = "INSERT INTO order_item (order_id, product_id, quantity, price) 
                         VALUES (:order_id, :product_id, :quantity, :price)";
@@ -292,10 +367,8 @@ class Post {
                 $stmt->bindParam(':quantity', $item['quantity']);
                 $stmt->bindParam(':price', $item['price']);
                 $stmt->execute();
-            }
-            
-            // 4. Update inventory quantities
-            foreach ($data['order_items'] as $item) {
+                
+                // Update inventory quantities
                 $sql = "SELECT pi.inventory_id, pi.quantity_needed 
                         FROM product_ingredients pi 
                         WHERE pi.product_id = :product_id";
@@ -319,14 +392,6 @@ class Post {
                 }
             }
             
-            // 5. Create receipt
-            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount) 
-                    VALUES (:order_id, NOW(), :total_amount)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':order_id', $order_id);
-            $stmt->bindParam(':total_amount', $data['total_amount']);
-            $stmt->execute();
-            
             $conn->commit();
             return [
                 "status" => true,
@@ -346,14 +411,14 @@ class Post {
     public function addCustomer($data) {
         global $conn;
         
-        if (!isset($data['Name']) || !isset($data['total_amount'])) {
-            return [
-                "status" => false,
-                "message" => "Customer name and total amount are required"
-            ];
-        }
-
         try {
+            if (!isset($data['Name']) || !isset($data['total_amount'])) {
+                return [
+                    "status" => false,
+                    "message" => "Customer name and total amount are required"
+                ];
+            }
+
             $sql = "INSERT INTO customer (Name, total_amount) 
                     VALUES (:name, :total_amount)";
             $stmt = $conn->prepare($sql);
@@ -414,13 +479,6 @@ class Post {
 
     public function addReceipt($data) {
         global $conn;
-        
-        if (!isset($data['order_id']) || !isset($data['total_amount'])) {
-            return [
-                "status" => false,
-                "message" => "Missing required fields: order_id and total_amount"
-            ];
-        }
         
         try {
             // First check if the order exists
@@ -539,7 +597,8 @@ class Post {
             if ($checkStmt->fetchColumn() > 0) {
                 return [
                     "status" => false,
-                    "message" => "This ingredient is already in the recipe"
+                    "message" => "This ingredient is already in the recipe",
+                    "data" => null
                 ];
             }
 
@@ -549,6 +608,14 @@ class Post {
             $stmt->bindParam(':inventory_id', $data['inventory_id']);
             $stmt->execute();
             $ingredient = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$ingredient) {
+                return [
+                    "status" => false,
+                    "message" => "Ingredient not found",
+                    "data" => null
+                ];
+            }
 
             // Insert new ingredient
             $sql = "INSERT INTO product_ingredients 
@@ -564,9 +631,20 @@ class Post {
             $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
             $stmt->execute();
 
-            return ["status" => true, "message" => "Ingredient added successfully"];
+            return [
+                "status" => true, 
+                "message" => "Ingredient added successfully",
+                "data" => [
+                    "product_ingredient_id" => $conn->lastInsertId(),
+                    "ingredient_name" => $ingredient['item_name']
+                ]
+            ];
         } catch (PDOException $e) {
-            return ["status" => false, "message" => $e->getMessage()];
+            return [
+                "status" => false, 
+                "message" => $e->getMessage(),
+                "data" => null
+            ];
         }
     }
 
@@ -692,6 +770,126 @@ class Post {
 
         // If conversion not found, return original quantity
         return $quantity;
+    }
+
+    public function archiveSales($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Insert into archived_sales
+            $archiveSql = "INSERT INTO archived_sales 
+                           (order_id, customer_id, order_date, total_amount, user_id, 
+                            payment_status, archived_date, archived_by)
+                           SELECT o.order_id, o.customer_id, o.order_date, o.total_amount, 
+                                  o.user_id, o.payment_status, NOW(), :archived_by
+                           FROM `order` o
+                           WHERE o.order_id = :order_id";
+            
+            $stmt = $conn->prepare($archiveSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->bindParam(':archived_by', $data['user_id']);
+            $stmt->execute();
+
+            // Delete related records in reverse order of dependencies
+            // Delete from sales
+            $deleteSalesSql = "DELETE FROM sales WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteSalesSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+
+            // Delete from receipt
+            $deleteReceiptSql = "DELETE FROM receipt WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteReceiptSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+
+            // Delete from order_item
+            $deleteOrderItemSql = "DELETE FROM order_item WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteOrderItemSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+
+            // Delete from order
+            $deleteOrderSql = "DELETE FROM `order` WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteOrderSql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Sales data archived successfully"
+            ];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to archive sales: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function archiveFilteredSales($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            foreach ($data['order_ids'] as $orderId) {
+                // Insert into archived_sales
+                $archiveSql = "INSERT INTO archived_sales 
+                              (order_id, customer_id, order_date, total_amount, user_id, 
+                               payment_status, archived_date, archived_by)
+                              SELECT o.order_id, o.customer_id, o.order_date, o.total_amount, 
+                                     o.user_id, o.payment_status, NOW(), :archived_by
+                              FROM `order` o
+                              WHERE o.order_id = :order_id";
+                
+                $stmt = $conn->prepare($archiveSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->bindParam(':archived_by', $data['user_id']);
+                $stmt->execute();
+
+                // Delete related records in reverse order of dependencies
+                // Delete from sales
+                $deleteSalesSql = "DELETE FROM sales WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteSalesSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from receipt
+                $deleteReceiptSql = "DELETE FROM receipt WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteReceiptSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from order_item
+                $deleteOrderItemSql = "DELETE FROM order_item WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteOrderItemSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from order
+                $deleteOrderSql = "DELETE FROM `order` WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteOrderSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+            }
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Sales data archived successfully"
+            ];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to archive sales: " . $e->getMessage()
+            ];
+        }
     }
 
 }

@@ -2,14 +2,20 @@
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { setUser } from '$lib/auth';
+    import { ApiService } from '$lib/services/api';
+
+    interface LoginResponse {
+        status: boolean;
+        userId: number;
+        username: string;
+        role: number;
+        message?: string;
+    }
 
     let username = '';
     let password = '';
     let errorMessage = '';
-
-    onMount(() => {
-        localStorage.removeItem('auth');
-    });
+    let showPassword = false;
 
     async function handleSubmit(event?: Event) {
         if (event) {
@@ -17,30 +23,29 @@
         }
         
         try {
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
+            const result = await ApiService.post<LoginResponse>('login', {
+                username,
+                password
             });
 
-            const data = await response.json();
-
-            if (data.status) {
-                setUser({
-                    userId: data.userId,
-                    username: username,
-                    role: data.role
+            if (result.status && (result.role === 0 || result.role === 1)) {
+                await setUser({
+                    userId: result.userId,
+                    username: result.username,
+                    role: result.role
                 });
                 goto('/order');
             } else {
-                errorMessage = data.message;
+                errorMessage = result.message || 'Login failed. Your account may be pending approval.';
             }
         } catch (error) {
             console.error('Login error:', error);
             errorMessage = 'Failed to login. Please try again.';
         }
+    }
+
+    function togglePassword() {
+        showPassword = !showPassword;
     }
 </script>
 
@@ -92,6 +97,9 @@
                         placeholder="Password"
                     >
                 </div>
+                {#if errorMessage}
+                    <div class="text-red-500 text-sm mb-4 text-center">{errorMessage}</div>
+                {/if}
                 <button 
                     type="submit" 
                     class="btn w-full rounded-full bg-[#d4a373] hover:bg-[#c49363] text-white py-3 font-medium transition-colors shadow-md"

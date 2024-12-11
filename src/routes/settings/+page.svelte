@@ -3,6 +3,8 @@
   import Header from '$lib/header.svelte';
   import Alert from '$lib/components/Alert.svelte';
   import RecipeManager from '$lib/RecipeManager.svelte';
+  import { ApiService } from '$lib/services/api.js';
+  import type { MenuItem } from '$lib/types.js';
 
   let y = 0;
   let innerHeight = 0;
@@ -11,7 +13,7 @@
   type Item = { product_id: number; name: string; image: string | File; price: string; category: string; size?: string; imageUrl?: string };
   type NewItem = { name: string; image: File; price: string; category: string; size?: string };
 
-  let items: Item[] = [];
+  let items: MenuItem[] = [];
   const categories = ['Pizza', 'Burger & Fries', 'Nachos', 'Drinks', 'Chocolate Series', 'Cheesecake Series']; // Add your categories here
   const sizeOptions = {
     'Pizza': ['Small', 'Standard', 'Large'],
@@ -21,8 +23,8 @@
     'Chocolate Series': ['Small', 'Standard', 'Large'],
     'Cheesecake Series': ['Small', 'Standard', 'Large']
   };
-  let newItem: NewItem = { name: '', image: new File([], ''), price: '', category: categories[0], size: '' };
-  let editItem: Item; // Change the type declaration to allow null
+  let newItem: MenuItem = { name: '', image: new File([], ''), price: '', category: categories[0], size: '', product_id: 0 };
+  let editItem: MenuItem | null = null; // Change the type declaration to allow null
   let isEditModalOpen = false;
   let searchQuery = '';
   let showAlert = false;
@@ -36,120 +38,150 @@
   });
 
   async function fetchItems() {
-    const response = await fetch('/api/get-menu-items');
-    const data = await response.json();
-    items = data.map((item: Item) => ({
-      ...item,
-      imageUrl: item.image ? `/POS/uploads/${item.image}` : '/placeholder.jpg'
-      // imageUrl: item.image ? `http://localhost/POS/uploads/${item.image}` : '/placeholder.jpg'
-    }));
-  }
-
-  async function addItem() {
-    if (!newItem.image) {
-      alertMessage = "Please select an image.";
-      alertType = 'warning';
-      showAlert = true;
-      setTimeout(() => showAlert = false, 3000);
-      return;
-    }
-
-    // Check if item already exists
-    const existingItem = items.find(item => 
-      item.name.toLowerCase() === newItem.name.toLowerCase() && 
-      item.category === newItem.category &&
-      (item.size === newItem.size || (!item.size && !newItem.size))
-    );
-
-    if (existingItem) {
-      alertMessage = `A ${newItem.category} item with name "${newItem.name}" ${newItem.size ? `and size ${newItem.size}` : ''} already exists`;
-      alertType = 'warning';
-      showAlert = true;
-      setTimeout(() => showAlert = false, 3000);
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('name', newItem.name);
-    formData.append('image', newItem.image);
-    formData.append('price', newItem.price);
-    formData.append('category', newItem.category);
-    formData.append('size', newItem.size || 'Standard');
-
     try {
-      const response = await fetch('/api/add-menu-item', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-      
-      showAlert = true;
-      if (result.status) {
-        alertMessage = "Item added successfully";
-        alertType = 'success';
-        await fetchItems();
-        // Reset form
-        newItem = { name: '', image: new File([], ''), price: '', category: categories[0], size: '' };
-        // Reset file input
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
-      } else {
-        if (result.duplicate) {
-          alertType = 'warning';
-          alertMessage = "This product already exists with these details";
-        } else {
-          alertType = 'error';
-          alertMessage = result.message || "Failed to add item";
-        }
+      const result = await ApiService.get<MenuItem[]>('get-menu-items');
+      if (result) {
+        items = result.map(item => ({
+          ...item,
+          product_id: item.product_id,
+          name: item.name,
+          price: Number(item.price),
+          category: item.category,
+          size: item.size || 'Standard',
+          image: item.image,
+          imageUrl: item.image ? `/POS/uploads/${item.image}` : '/placeholder.jpg'
+        }));
       }
-      
-      // Auto-hide alert after 3 seconds
-      setTimeout(() => showAlert = false, 3000);
-      
     } catch (error) {
+      console.error('Error fetching items:', error);
       showAlert = true;
       alertType = 'error';
-      alertMessage = "Error adding item: Network error";
+      alertMessage = "Failed to fetch menu items";
       setTimeout(() => showAlert = false, 3000);
-      console.error('Error:', error);
     }
   }
 
-  async function updateItem() {
-    if (!editItem) return;
-
-    const formData = new FormData();
-    formData.append('product_id', editItem.product_id.toString());
-    formData.append('name', editItem.name);
-    formData.append('price', editItem.price);
-    formData.append('category', editItem.category);
-    formData.append('size', editItem.size || 'Standard');
-    
-    // Handle image upload if a new image was selected
-    if (editItem.image instanceof File) {
-        formData.append('image', editItem.image);
+  async function addMenuItem() {
+    if (!newItem.name.trim() || !newItem.price || !newItem.category) {
+        showAlert = true;
+        alertType = 'error';
+        alertMessage = "Please fill in all required fields";
+        setTimeout(() => showAlert = false, 3000);
+        return;
     }
 
     try {
-        const response = await fetch('/api/update-menu-item', {
-            method: 'POST',
-            body: formData,
-        });
+        let imageFilename = '';
         
-        const result = await response.json();
+        // Handle image upload if there is one
+        if (newItem.image instanceof File && newItem.image.size > 0) {
+            const formData = new FormData();
+            formData.append('image', newItem.image);
+            
+            const uploadResult = await ApiService.post<{
+                status: boolean;
+                filename: string;
+                message?: string;
+            }>('upload-image', formData);
+
+            if (!uploadResult.status) {
+                throw new Error(uploadResult.message || 'Failed to upload image');
+            }
+            imageFilename = uploadResult.filename;
+        }
+
+        // Send the menu item data
+        const itemData = {
+            name: newItem.name,
+            price: parseFloat(newItem.price.toString()),
+            category: newItem.category,
+            size: newItem.size || 'Standard',
+            image: imageFilename
+        };
+
+        const result = await ApiService.post<ApiResponse<{product_id: number}>>('add-menu-item', itemData);
         
+        showAlert = true;
+        if (result.status) {
+            alertMessage = "Item added successfully";
+            alertType = 'success';
+            await fetchItems();
+            
+            // Reset form
+            newItem = { 
+                name: '', 
+                image: new File([], ''), 
+                price: '', 
+                category: categories[0], 
+                size: '', 
+                product_id: 0 
+            };
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            if (fileInput) fileInput.value = '';
+        } else {
+            alertType = 'error';
+            alertMessage = result.message || "Failed to add item";
+        }
+        
+        setTimeout(() => showAlert = false, 3000);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert = true;
+        alertType = 'error';
+        alertMessage = "Error adding item: " + (error instanceof Error ? error.message : 'Network error');
+        setTimeout(() => showAlert = false, 3000);
+    }
+  }
+
+  async function updateMenuItem() {
+    if (!editItem) return;
+
+    try {
+        const updateData = {
+            product_id: editItem.product_id,
+            name: editItem.name,
+            price: editItem.price,
+            category: editItem.category,
+            size: editItem.size || 'Standard'
+        };
+
+        // If there's a new image, upload it first
+        if (editItem.image instanceof File) {
+            const formData = new FormData();
+            formData.append('image', editItem.image);
+            
+            const imageResult = await ApiService.post<{
+                status: boolean;
+                filename: string;
+                message?: string;
+            }>('upload-image', formData);
+            
+            if (imageResult.status) {
+                updateData.image = imageResult.filename;
+            } else {
+                throw new Error(imageResult.message || 'Failed to upload image');
+            }
+        }
+
+        // Send the update request
+        const result = await ApiService.put<ApiResponse<void>>('update-menu-item', updateData);
+        
+        showAlert = true;
         if (result.status) {
             alertMessage = "Menu item updated successfully";
             alertType = 'success';
             await fetchItems();
             isEditModalOpen = false;
         } else {
-            alertMessage = result.message || "Failed to update item";
             alertType = 'error';
+            if (result.duplicate) {
+                alertMessage = "A similar product already exists";
+            } else {
+                alertMessage = result.message || "Failed to update item";
+            }
         }
         
-        showAlert = true;
         setTimeout(() => showAlert = false, 3000);
     } catch (error) {
         alertMessage = "Error updating item: Network error";
@@ -160,23 +192,37 @@
     }
   }
 
-  async function deleteItem(itemId: number) {
-    const response = await fetch('/api/delete-menu-item', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ product_id: itemId }),
-    });
-    const result = await response.json();
-    if (result.status) {
-      items = items.filter(item => item.product_id !== itemId);
-    } else {
-      alert(result.message);
+  async function deleteMenuItem(itemId: number) {
+    if (!confirm('Are you sure you want to delete this item?')) {
+        return;
+    }
+
+    try {
+        const result = await ApiService.delete<ApiResponse<void>>('delete-menu-item', {
+            product_id: itemId
+        });
+        
+        if (result.status) {
+            items = items.filter(item => item.product_id !== itemId);
+            alertMessage = "Item deleted successfully";
+            alertType = 'success';
+        } else {
+            alertMessage = result.message || "Failed to delete item";
+            alertType = 'error';
+        }
+        
+        showAlert = true;
+        setTimeout(() => showAlert = false, 3000);
+    } catch (error) {
+        console.error('Error:', error);
+        alertMessage = "Error deleting item";
+        alertType = 'error';
+        showAlert = true;
+        setTimeout(() => showAlert = false, 3000);
     }
   }
 
-  function startEdit(item: Item) {
+  function startEdit(item: MenuItem) {
     editItem = { 
         ...item,
         size: item.size === 'base-size' ? 'Standard' : (item.size || 'Standard')
@@ -204,16 +250,39 @@
     editItem.size = 'Standard';
   }
 
-  function openRecipeManager(product) {
-    selectedProduct = product;
-    showRecipeManager = true;
+  async function openRecipeManager(product: MenuItem) {
+    try {
+        // Encrypt and fetch product ingredients
+        const result = await ApiService.get<{status: boolean; data: any[]}>('get-product-ingredients', {
+            product_id: product.product_id.toString()
+        });
+
+        if (result.status) {
+            selectedProduct = {
+                ...product,
+                ingredients: result.data
+            };
+            showRecipeManager = true;
+        } else {
+            alertMessage = "Failed to load recipe ingredients";
+            alertType = 'error';
+            showAlert = true;
+            setTimeout(() => showAlert = false, 3000);
+        }
+    } catch (error) {
+        console.error('Error loading recipe:', error);
+        alertMessage = "Error loading recipe";
+        alertType = 'error';
+        showAlert = true;
+        setTimeout(() => showAlert = false, 3000);
+    }
   }
 </script>
 
 <Header {y} {innerHeight} />
 
 {#if showAlert}
-  <div class="alert-container">
+  <div class="fixed-alert">
     <Alert type={alertType} message={alertMessage} />
   </div>
 {/if}
@@ -223,7 +292,7 @@
     <h1 class="text-2xl font-bold mb-6">Manage Menu Items</h1>
 
     <div class="form-section bg-white p-6 rounded-lg shadow-md mb-6">
-      <form on:submit|preventDefault={addItem} class="space-y-4">
+      <form on:submit|preventDefault={addMenuItem} class="space-y-4">
         <div class="grid grid-cols-2 gap-4">
           <input 
             type="text" 
@@ -246,11 +315,13 @@
             required 
           />
           <input 
-            type="text" 
+            type="number" 
             bind:value={newItem.price} 
             placeholder="Price" 
             class="p-2 border rounded-md w-full"
             required 
+            min="0"
+            step="0.01"
           />
           <select 
             bind:value={newItem.category} 
@@ -272,7 +343,14 @@
             {/each}
           </select>
         </div>
-        <button type="submit" class="bg-[#d4a373] hover:bg-[#cba17f] text-[#faedcd] px-4 py-2 rounded-md w-full transition-colors">Add Item</button>      </form>
+        <button 
+          type="submit" 
+          class="bg-[#ccd5ae] text-white px-4 py-2 rounded-md w-full hover:bg-[#bcc39e]"
+          disabled={!newItem.name || !newItem.price || !newItem.category}
+        >
+          Add Item
+        </button>
+      </form>
     </div>
 
     <div class="mb-6">
@@ -291,13 +369,13 @@
             <h2 class="text-xl font-bold">Edit Item</h2>
             <button class="close-btn" on:click={closeEditModal}>&times;</button>
           </div>
-          <form on:submit|preventDefault={updateItem} class="space-y-4">
+          <form on:submit|preventDefault={updateMenuItem} class="space-y-4">
             <div class="grid grid-cols-1 gap-4">
               <div class="current-image">
                 <img 
                   src={editItem.image instanceof File 
                     ? URL.createObjectURL(editItem.image) 
-                    : `http://localhost/POS/uploads/${editItem.image}`}
+                    : `https://formalytics.me/uploads/${editItem.image}`}
                   alt={editItem.name}
                   class="w-full h-48 object-cover rounded-md mb-2"
                   on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
@@ -339,8 +417,8 @@
               </select>
             </div>
             <div class="flex gap-2">
-              <button type="submit" class="bg-[#d4a373] hover:bg-[#cba17f] text-[#faedcd] px-4 py-2 rounded-md flex-1 transition-colors">Update</button>
-              <button type="button" on:click={closeEditModal} class="bg-[#d4a373] hover:bg-[#cba17f] text-[#faedcd] px-4 py-2 rounded-md flex-1 transition-colors">Cancel</button>
+              <button type="submit" class="bg-[#d4a373] text-white px-4 py-2 rounded-md flex-1 hover:bg-[#bcc39e]">Update</button>
+              <button type="button" on:click={closeEditModal} class="bg-gray-500 text-white px-4 py-2 rounded-md flex-1">Cancel</button>
             </div>
           </form>
         </div>
@@ -348,10 +426,12 @@
     {/if}
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {#each filterItems(items, searchQuery) as item}
+      {#each filterItems(items, searchQuery) as item (item.product_id)}
         <div class="item-card">
           <img 
-            src={`http://localhost/POS/uploads/${item.image}`}
+            src={item.image instanceof File ? 
+                URL.createObjectURL(item.image) : 
+                `https://formalytics.me/uploads/${item.image}`}
             alt={item.name} 
             class="item-image" 
             on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
@@ -365,10 +445,10 @@
             {/if}
             <div class="item-actions">
               <button on:click={() => startEdit(item)} class="edit-btn">Edit</button>
-              <button on:click={() => deleteItem(item.product_id)} class="delete-btn">Delete</button>
+              <button on:click={() => deleteMenuItem(item.product_id)} class="delete-btn">Delete</button>
               <button
                 on:click={() => openRecipeManager(item)}
-                class="bg-blue-500 text-white px-2 py-1 rounded-md text-sm"
+                class="bg-[#d4a373] text-white px-2 py-1 rounded-md text-sm hover:bg-[#bcc39e]"
               >
                 Manage Recipe
               </button>
@@ -388,7 +468,7 @@
         productName={selectedProduct.name}
       />
       <button
-        class="mt-4 bg-[#d4a373] hover:bg-[#cba17f] text-[#faedcd] px-4 py-2 rounded-md transition-colors"
+        class="mt-4 bg-gray-500 text-white px-4 py-2 rounded-md"
         on:click={() => showRecipeManager = false}
       >
         Close
@@ -402,7 +482,7 @@
     width: 100%;
     min-height: 100vh;
     padding: 1rem;
-    background-color: #faedcd;
+    background-color: #fefae0;
   }
 
   .settings-content {
@@ -412,7 +492,7 @@
   }
 
   .item-card {
-    background: white;
+    background: #faedcd;
     border-radius: 8px;
     overflow: hidden;
     transition: transform 0.2s;
@@ -449,7 +529,7 @@
   }
 
   .edit-btn {
-    background-color: #d4a373;
+    background-color: #ccd5ae;
     color: white;
   }
 
@@ -468,18 +548,18 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 9000;
   }
 
   .modal-content {
-  background: #faedcd;
-  padding: 2rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  position: relative;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
+    background: #faedcd;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    z-index: 9001;
+  }
 
   .modal-header {
     display: flex;
@@ -497,26 +577,42 @@
   }
 
   .close-btn:hover {
-    color: #666;
+    color: #d4a373;
   }
 
   .current-image {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d4a373;
     padding: 1rem;
     border-radius: 0.5rem;
   }
 
   .current-image img {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #d4a373;
   }
 
-  .alert-container {
+  .fixed-alert {
     position: fixed;
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1000;
+    z-index: 9999;
     width: 90%;
     max-width: 500px;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      transform: translate(-50%, -100%);
+      opacity: 0;
+    }
+    to {
+      transform: translate(-50%, 0);
+      opacity: 1;
+    }
+  }
+
+  .header {
+    z-index: 8000;
   }
 </style>

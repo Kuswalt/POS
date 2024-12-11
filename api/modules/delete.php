@@ -7,6 +7,14 @@ header('Content-Type: application/json');
 class Delete {
     public function deleteItemStock($data) {
         global $conn;
+        
+        if (!isset($data['inventory_id'])) {
+            return [
+                "status" => false,
+                "message" => "Inventory ID is required"
+            ];
+        }
+
         $inventory_id = $data['inventory_id'];
 
         try {
@@ -23,15 +31,10 @@ class Delete {
             $usedInProducts = $checkStmt->fetchAll(PDO::FETCH_ASSOC);
             
             if (count($usedInProducts) > 0) {
-                $productList = array_map(function($p) {
-                    return $p['product_name'];
-                }, $usedInProducts);
-                
                 $conn->rollBack();
                 return [
                     "status" => false, 
-                    "message" => "Cannot delete this ingredient as it is being used in the following products: " . 
-                                implode(", ", $productList) . ". Please remove it from these products first.",
+                    "message" => "Cannot delete this ingredient as it is being used in products",
                     "products" => $usedInProducts
                 ];
             }
@@ -43,7 +46,10 @@ class Delete {
             $stmt->execute();
             
             $conn->commit();
-            return ["status" => true, "message" => "Item stock deleted successfully"];
+            return [
+                "status" => true, 
+                "message" => "Item stock deleted successfully"
+            ];
 
         } catch (PDOException $e) {
             $conn->rollBack();
@@ -56,6 +62,14 @@ class Delete {
 
     public function deleteMenuItem($data) {
         global $conn;
+        
+        if (!isset($data['product_id'])) {
+            return [
+                "status" => false,
+                "message" => "Product ID is required"
+            ];
+        }
+
         $id = $data['product_id'];
         
         try {
@@ -86,7 +100,10 @@ class Delete {
             $stmt->execute();
             
             $conn->commit();
-            return ["status" => true, "message" => "Menu item deleted successfully"];
+            return [
+                "status" => true, 
+                "message" => "Menu item deleted successfully"
+            ];
             
         } catch (PDOException $e) {
             $conn->rollBack();
@@ -101,58 +118,50 @@ class Delete {
         global $conn;
         
         if (!isset($data['order_id'])) {
-            return ["status" => false, "message" => "Order ID is required"];
+            return [
+                "status" => false,
+                "message" => "Order ID is required"
+            ];
         }
         
         try {
             $conn->beginTransaction();
             
-            // Get customer_id before deleting the order
-            $sql = "SELECT customer_id FROM `order` WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
+            // Delete from sales first
+            $deleteSalesSql = "DELETE FROM sales WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteSalesSql);
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->execute();
-            $customer_id = $stmt->fetchColumn();
-            
-            // Delete related records first (due to foreign key constraints)
-            // Delete from receipt table
-            $sql = "DELETE FROM receipt WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
+
+            // Delete from receipt
+            $deleteReceiptSql = "DELETE FROM receipt WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteReceiptSql);
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->execute();
-            
-            // Delete from sales table
-            $sql = "DELETE FROM sales WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
+
+            // Delete from order_item
+            $deleteOrderItemSql = "DELETE FROM order_item WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteOrderItemSql);
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->execute();
-            
-            // Delete from order_item table
-            $sql = "DELETE FROM order_item WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
+
+            // Delete from order
+            $deleteOrderSql = "DELETE FROM `order` WHERE order_id = :order_id";
+            $stmt = $conn->prepare($deleteOrderSql);
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->execute();
-            
-            // Delete from order table
-            $sql = "DELETE FROM `order` WHERE order_id = :order_id";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':order_id', $data['order_id']);
-            $stmt->execute();
-            
-            // Finally, delete the customer
-            if ($customer_id) {
-                $sql = "DELETE FROM customer WHERE customer_id = :customer_id";
-                $stmt = $conn->prepare($sql);
-                $stmt->bindParam(':customer_id', $customer_id);
-                $stmt->execute();
-            }
             
             $conn->commit();
-            return ["status" => true, "message" => "Order and related customer deleted successfully"];
-            
+            return [
+                "status" => true,
+                "message" => "Order deleted successfully"
+            ];
         } catch (PDOException $e) {
             $conn->rollBack();
-            return ["status" => false, "message" => "Failed to delete order: " . $e->getMessage()];
+            return [
+                "status" => false,
+                "message" => "Failed to delete order: " . $e->getMessage()
+            ];
         }
     }
 
@@ -200,6 +209,14 @@ class Delete {
     public function deleteProductIngredient($data) {
         global $conn;
         
+        if (!isset($data['product_ingredient_id'])) {
+            return [
+                "status" => false,
+                "message" => "Product ingredient ID is required",
+                "data" => null
+            ];
+        }
+
         try {
             $conn->beginTransaction();
             
@@ -209,15 +226,27 @@ class Delete {
             
             if ($stmt->rowCount() === 0) {
                 $conn->rollBack();
-                return ["status" => false, "message" => "No ingredient found to delete"];
+                return [
+                    "status" => false, 
+                    "message" => "No ingredient found to delete",
+                    "data" => null
+                ];
             }
             
             $conn->commit();
-            return ["status" => true, "message" => "Product ingredient deleted successfully"];
+            return [
+                "status" => true, 
+                "message" => "Product ingredient deleted successfully",
+                "data" => null
+            ];
             
         } catch (PDOException $e) {
             $conn->rollBack();
-            return ["status" => false, "message" => "Failed to delete product ingredient: " . $e->getMessage()];
+            return [
+                "status" => false, 
+                "message" => "Failed to delete product ingredient: " . $e->getMessage(),
+                "data" => null
+            ];
         }
     }
 
@@ -241,13 +270,25 @@ class Delete {
         }
     }
 
-    public function removeFromCart($productId, $userId) {
+    public function removeFromCart($data) {
         global $conn;
+        
+        // Validate required fields
+        if (!isset($data['product_id']) || !isset($data['user_id'])) {
+            return [
+                "status" => false,
+                "message" => "Product ID and User ID are required"
+            ];
+        }
+
         try {
-            $sql = "DELETE FROM cart WHERE product_id = :product_id AND user_id = :user_id";
+            $sql = "DELETE FROM cart 
+                    WHERE product_id = :product_id 
+                    AND user_id = :user_id";
+                    
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':product_id', $productId);
-            $stmt->bindParam(':user_id', $userId);
+            $stmt->bindParam(':product_id', $data['product_id']);
+            $stmt->bindParam(':user_id', $data['user_id']);
             $stmt->execute();
             
             return [
@@ -255,9 +296,56 @@ class Delete {
                 "message" => "Item removed from cart successfully"
             ];
         } catch (PDOException $e) {
+            error_log("Error removing from cart: " . $e->getMessage());
             return [
                 "status" => false,
-                "message" => $e->getMessage()
+                "message" => "Database error: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteFilteredOrders($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            foreach ($data['order_ids'] as $orderId) {
+                // Delete from sales
+                $deleteSalesSql = "DELETE FROM sales WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteSalesSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from receipt
+                $deleteReceiptSql = "DELETE FROM receipt WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteReceiptSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from order_item
+                $deleteOrderItemSql = "DELETE FROM order_item WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteOrderItemSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+
+                // Delete from order
+                $deleteOrderSql = "DELETE FROM `order` WHERE order_id = :order_id";
+                $stmt = $conn->prepare($deleteOrderSql);
+                $stmt->bindParam(':order_id', $orderId);
+                $stmt->execute();
+            }
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Orders deleted successfully"
+            ];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to delete orders: " . $e->getMessage()
             ];
         }
     }

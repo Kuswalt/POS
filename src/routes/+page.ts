@@ -1,31 +1,23 @@
 import { goto } from '$app/navigation';
 import { get } from 'svelte/store';
-import { userStore } from '$lib/auth';
-import type { PageLoad } from './$types';
+import { userStore, checkAuth } from '$lib/auth.js';
+import type { PageLoad } from './$types.js';
 import { browser } from '$app/environment';
 
-export const load: PageLoad = () => {
+export const load: PageLoad = async () => {
     if (!browser) return {};
 
     const user = get(userStore);
     
-    // Check localStorage if user is not authenticated
+    // If not authenticated, check localStorage
     if (!user.isAuthenticated) {
-        const stored = localStorage.getItem('auth');
-        if (stored) {
-            try {
-                const storedUser = JSON.parse(stored);
-                if (storedUser.userId && storedUser.username && storedUser.isAuthenticated) {
-                    userStore.set(storedUser);
-                    goto('/order');
-                    return {};
-                }
-            } catch (error) {
-                console.error('Error parsing auth data:', error);
-                localStorage.removeItem('auth');
-            }
+        const isAuthenticated = await checkAuth();
+        if (isAuthenticated) {
+            goto('/order');
+            return {};
         }
     } else {
+        // If already authenticated, redirect to order page
         goto('/order');
     }
     

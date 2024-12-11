@@ -1,4 +1,10 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
+  import { ApiService } from '$lib/services/api';
+  import Alert from '$lib/components/Alert.svelte';
+
+  const dispatch = createEventDispatcher();
+
   interface CartItem {
     id: number;
     name: string;
@@ -46,15 +52,30 @@
   // Add new state variable
   let productAvailability: Record<number, number> = {};
 
+  // Alert state management
+  let showAlert = false;
+  let alertMessage = '';
+  let alertType: 'success' | 'error' | 'warning' = 'error';
+
+  function showAlertMessage(message: string, type: 'success' | 'error' | 'warning' = 'error') {
+    alertMessage = message;
+    alertType = type;
+    showAlert = true;
+    setTimeout(() => {
+      showAlert = false;
+    }, 3000);
+  }
+
   // Function to check ingredient availability
   async function checkIngredientAvailability(productId: number, requestedQuantity: number): Promise<boolean> {
     try {
-      const response = await fetch(`/api/check-ingredient-availability&product_id=${productId}&quantity=${requestedQuantity}`, {
-        method: 'GET'
+      const result = await ApiService.get<{
+        status: boolean;
+        max_possible_quantity: number;
+      }>('check-ingredient-availability', {
+        product_id: productId.toString(),
+        quantity: requestedQuantity.toString()
       });
-
-      const result = await response.json();
-      console.log('Availability check result:', result);
 
       if (result.status) {
         productAvailability[productId] = result.max_possible_quantity;
@@ -70,130 +91,61 @@
 
   async function saveCustomer() {
     if (!customerName.trim()) {
-      alert('Please enter customer name');
+      showAlertMessage('Please enter customer name');
       return;
     }
 
     if (!amountPaid) {
-      alert('Please enter amount paid');
+      showAlertMessage('Please enter amount paid');
       return;
     }
 
     if (amountPaid < total) {
-      alert('Amount paid cannot be less than the total amount');
+      showAlertMessage('Amount paid cannot be less than the total amount');
       return;
     }
 
     try {
       // First save customer info
-      const customerResponse = await fetch('/api/add-customer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          Name: customerName,
-          total_amount: amountPaid
-        })
+      const customerResult = await ApiService.post('add-customer', {
+        Name: customerName,
+        total_amount: amountPaid
       });
-
-      let customerResult;
-      try {
-        customerResult = await customerResponse.json();
-      } catch (e) {
-        console.error('Customer Response:', await customerResponse.text());
-        throw new Error('Invalid JSON in customer response');
-      }
 
       if (customerResult.status) {
         // Create order
-        const orderResponse = await fetch('/api/create-order', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            customer_id: customerResult.customer_id,
-            total_amount: total,
-            user_id: userId,
-            payment_status: 'paid',
-            order_items: cartItems.map(item => ({
-              product_id: item.id,
-              quantity: item.quantity,
-              price: item.price
-            }))
-          })
+        const orderResult = await ApiService.post('create-order', {
+          customer_id: customerResult.customer_id,
+          total_amount: total,
+          user_id: userId,
+          payment_status: 'paid',
+          order_items: cartItems.map(item => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            price: item.price
+          }))
         });
-
-        let orderResult;
-        try {
-          orderResult = await orderResponse.json();
-        } catch (e) {
-          console.error('Order Response:', await orderResponse.text());
-          throw new Error('Invalid JSON in order response');
-        }
 
         if (orderResult.status) {
           // Record sale
-          const saleResponse = await fetch('/api/add-sale', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              order_id: orderResult.order_id,
-              total_sales: total,
-              user_id: userId
-            })
+          const saleResult = await ApiService.post('add-sale', {
+            order_id: orderResult.order_id,
+            total_sales: total,
+            user_id: userId
           });
-
-          let saleResult;
-          try {
-            saleResult = await saleResponse.json();
-          } catch (e) {
-            console.error('Sale Response:', await saleResponse.text());
-            throw new Error('Invalid JSON in sale response');
-          }
 
           if (saleResult.status) {
             // Generate receipt
-            const receiptResponse = await fetch('/api/add-receipt', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                order_id: orderResult.order_id,
-                total_amount: total
-              })
+            const receiptResult = await ApiService.post('add-receipt', {
+              order_id: orderResult.order_id,
+              total_amount: total
             });
 
-            let receiptResult;
-            try {
-              receiptResult = await receiptResponse.json();
-            } catch (e) {
-              console.error('Receipt Response:', await receiptResponse.text());
-              throw new Error('Invalid JSON in receipt response');
-            }
-
             if (receiptResult.status) {
-              // Clear cart from database
-              const clearCartResponse = await fetch('/api/clear-cart', {
-                method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  user_id: userId
-                })
-              });
-
-              const clearCartResult = await clearCartResponse.json();
-              if (!clearCartResult.status) {
-                console.error('Failed to clear cart:', clearCartResult.message);
-              }
-
-              // Prepare receipt data
+              // Clear cart
+              await ApiService.delete('clear-cart', { user_id: userId });
+              
+              // Show receipt modal
               receiptData = {
                 receipt_id: receiptResult.receipt_id,
                 customer_name: customerName,
@@ -204,25 +156,23 @@
                 change: change
               };
               
-              showReceiptModal = true; // Show the receipt modal
-              cartItems = []; // Clear cart
+              showReceiptModal = true;
+              
+              // Clear all cart-related data
+              cartItems = [];
               customerName = '';
               amountPaid = 0;
-            } else {
-              alert('Failed to generate receipt: ' + receiptResult.message);
+              change = 0;
+              
+              // Dispatch event to notify parent component
+              dispatch('cartCleared');
             }
-          } else {
-            alert('Failed to record sale: ' + saleResult.message);
           }
-        } else {
-          alert('Failed to save order information: ' + orderResult.message);
         }
-      } else {
-        alert('Failed to save customer information: ' + customerResult.message);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving information:', error);
-      alert(error.message || 'Failed to save information');
+      showAlertMessage('Failed to process order');
     }
   }
 
@@ -232,8 +182,12 @@
   }
 
   function printReceipt() {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow || !receiptData) return;
+    if (!receiptData) return;
+
+    // Create a hidden iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
 
     const printContent = `
       <!DOCTYPE html>
@@ -324,48 +278,97 @@
       </html>
     `;
 
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(printContent);
+    doc.close();
+
     // Wait for content to load before printing
-    printWindow.onload = function() {
-      printWindow.print();
-      // Optional: Close the window after printing
-      // printWindow.close();
+    iframe.onload = function() {
+        try {
+            iframe.contentWindow?.print();
+            
+            // Remove the iframe after printing
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+                // Close the receipt modal
+                closeReceiptModal();
+            }, 500);
+        } catch (error) {
+            console.error('Error printing:', error);
+        }
     };
+  }
+
+  async function handleQuantityChange(item: CartItem, change: number) {
+    const newQuantity = item.quantity + change;
+    if (newQuantity < 1) return;
+    
+    try {
+      const result = await ApiService.get<{
+        is_available: boolean, 
+        max_quantity: number, 
+        debug_info: any
+      }>(
+        'check-ingredient-availability',
+        {
+          product_id: item.id.toString(),
+          quantity: newQuantity.toString()
+        }
+      );
+      
+      if (!result.is_available || newQuantity > result.max_quantity) {
+        showAlertMessage(`Cannot change quantity: Insufficient ingredients. Maximum available: ${result.max_quantity}`);
+        return;
+      }
+      
+      onUpdateQuantity(item.id, newQuantity);
+    } catch (error) {
+      console.error('Error checking quantity availability:', error);
+    }
   }
 </script>
 
 <div class="cart-container">
+  {#if showAlert}
+    <Alert type={alertType} message={alertMessage} />
+  {/if}
+  
   <h2 class="cart-title">Order Summary</h2>
   
   <div class="cart-items-container">
     <div class="cart-items">
       {#each cartItems as item}
         <div class="cart-item">
-          <img src={item.image ? `uploads/${item.image}` : 'placeholder.jpg'} alt={item.name} class="cart-item-image" />
+          <img 
+            src={item.image.startsWith('http') ? item.image : `https://formalytics.me/uploads/${item.image}`}
+            alt={item.name}
+            class="cart-item-image"
+            on:error={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                img.src = '/images/placeholder.jpg';
+            }}
+          />
           <div class="cart-item-details">
             <h3>{item.name}</h3>
             <p>₱{item.price}</p>
             <div class="quantity-controls">
-              <button on:click={() => onUpdateQuantity(item.id, item.quantity - 1)}>-</button>
+              <button 
+                class="quantity-btn"
+                on:click={() => handleQuantityChange(item, -1)}
+                disabled={item.quantity <= 1}
+              >
+                -
+              </button>
               <span>{item.quantity}</span>
               <button 
-                on:click={async () => {
-                  console.log('Current quantity:', item.quantity); // Debug log
-                  console.log('Max quantity:', productAvailability[item.id]); // Debug log
-                  
-                  const canIncrease = await checkIngredientAvailability(item.id, item.quantity + 1);
-                  console.log('Can increase?', canIncrease); // Debug log
-                  
-                  if (canIncrease) {
-                    onUpdateQuantity(item.id, item.quantity + 1);
-                  } else {
-                    alert(`Cannot add more ${item.name}. Limited by ingredient availability.`);
-                  }
-                }}
-                disabled={productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
-              >+</button>
+                class="quantity-btn"
+                on:click={() => handleQuantityChange(item, 1)}
+              >
+                +
+              </button>
             </div>
             {#if productAvailability[item.id] !== undefined && item.quantity >= productAvailability[item.id]}
               <p class="text-red-500 text-sm">Maximum available quantity reached ({productAvailability[item.id]})</p>
@@ -465,12 +468,15 @@
   .cart-container {
     width: 100%;
     max-width: 400px;
-    background: white;
+    background: #faedcd;
     border-radius: 0.5rem;
     padding: 1.5rem;
-    display: flex;
+    display: flex
+;
     flex-direction: column;
     height: calc(100vh - 4rem);
+    
+    
   }
 
   .cart-title {
@@ -555,20 +561,6 @@
     border-top: 2px solid #e5e7eb;
   }
 
-  .checkout-btn {
-    flex: 1;
-    padding: 0.75rem;
-    background: #47cb50;
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-  }
-
-  .checkout-btn:hover {
-    background: #3db845;
-  }
-
   .customer-details {
     padding: 1rem;
     border-top: 1px solid #e5e7eb;
@@ -591,11 +583,6 @@
     border-radius: 0.25rem;
     text-align: right;
     font-weight: bold;
-  }
-
-  .checkout-btn:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
   }
 
   .customer-actions {
@@ -684,7 +671,7 @@
     margin: 0.5rem 0;
   }
 
-  .close-btn {
+  .close-btn, .print-btn {
     display: block;
     width: 100%;
     padding: 0.75rem;
@@ -696,23 +683,7 @@
     cursor: pointer;
   }
 
-  .close-btn:hover {
-    background: #374151;
-  }
-
-  .print-btn {
-    display: block;
-    width: 100%;
-    padding: 0.75rem;
-    background: #4B5563;
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    margin-top: 1rem;
-    cursor: pointer;
-  }
-
-  .print-btn:hover {
+  .close-btn:hover, .print-btn:hover {
     background: #374151;
   }
 
@@ -731,17 +702,6 @@
     color: #ef4444;
     font-size: 0.875rem;
     margin-top: 0.25rem;
-  }
-
-  .save-customer-btn:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
-  }
-
-  .quantity-controls button:disabled {
-    background-color: #e5e7eb;
-    cursor: not-allowed;
-    opacity: 0.5;
   }
 
   @media (max-width: 768px) {

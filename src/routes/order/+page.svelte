@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import SideNav from '$lib/sideNav.svelte';
   import Header from '$lib/header.svelte';
   import ItemCard from '$lib/itemCard.svelte';
@@ -8,6 +9,9 @@
   import { goto } from '$app/navigation';
   import { checkAuth } from '$lib/auth';
   import { productAvailability, availabilityLoading } from '$lib/stores/productAvailability';
+  import { ApiService } from '$lib/services/api';
+  import type { BatchAvailabilityResponse } from '$lib/types';
+  import { encryptionService } from '$lib/services/encryption';
 
   type Product = {
     product_id: number;
@@ -61,20 +65,13 @@
 
   async function fetchItems() {
     try {
-        const response = await fetch('/api/get-menu-items');
-        const data = await response.json();
-        
-        if (Array.isArray(data)) {
-            products = data.map((p: any) => ({ 
-                ...p,
-                price: Number(p.price),
-                product_id: p.product_id || p.id,
-                image: p.image || ''
-            }));
-        } else {
-            console.error('Unexpected data format:', data);
-            products = [];
-        }
+        const data = await ApiService.get<Product[]>('get-menu-items');
+        products = data.map(p => ({ 
+            ...p,
+            price: Number(p.price),
+            product_id: p.product_id || p.id,
+            image: p.image || ''
+        }));
     } catch (error) {
         console.error('Error fetching items:', error);
         products = [];
@@ -83,17 +80,15 @@
 
   async function fetchCartItems() {
     try {
-      const response = await fetch(`/api/get-cart-items?user_id=${userId}`);
-      const result = await response.json();
-      
+      const result = await ApiService.get<CartItem[]>(`get-cart-items`, { user_id: userId.toString() });
       if (result.status && Array.isArray(result.data)) {
-        cartItems = result.data.map((item: any) => ({
+        cartItems = result.data.map(item => ({
           product_id: item.product_id,
           id: item.product_id,
           name: item.name,
           price: Number(item.price),
           quantity: Number(item.quantity),
-          image: item.image,
+          image: item.image ? `https://formalytics.me/uploads/${item.image}` : '/images/placeholder.jpg',
           category: item.category
         }));
       } else {
@@ -107,14 +102,15 @@
 
   async function checkInventoryStock(product: Product, quantity: number = 1): Promise<{ available: boolean; message: string }> {
     try {
-      const response = await fetch(`/api/get-product-ingredients&product_id=${product.product_id}`);
-      const result = await response.json();
+      const result = await ApiService.get<{available: boolean; message: string}>('get-product-ingredients', {
+        product_id: product.product_id.toString()
+      });
       
       if (!result.status || !result.data || result.data.length === 0) {
         return { available: false, message: 'No Recipe Set' };
       }
 
-      // Check if any ingredient is insufficient for the requested quantity
+      // Check if any ingredient is insufficient
       for (const ingredient of result.data) {
         const requiredQuantity = ingredient.quantity_needed * quantity;
         if (ingredient.stock_quantity < requiredQuantity) {
@@ -129,62 +125,106 @@
     }
   }
 
-  async function addToCart(product: Product) {
+  async function updateCartQuantity(productId: number, newQuantity: number) {
     try {
-        // First, get current cart quantity
-        const response = await fetch(`/api/get-cart-item&product_id=${product.product_id}&user_id=${userId}`);
-        const cartResult = await response.json();
-        const currentQuantity = cartResult.status ? (cartResult.data?.quantity || 0) : 0;
-        
-        // Check stock for new total quantity
-        const stockCheck = await checkInventoryStock(product, currentQuantity + 1);
-        if (!stockCheck.available) {
-            alert(stockCheck.message);
-            return;
+      const result = await ApiService.get<{
+        is_available: boolean, 
+        max_quantity: number, 
+        debug_info: any
+      }>(
+        'check-ingredient-availability',
+        {
+          product_id: productId.toString(),
+          quantity: newQuantity.toString()
         }
-        
-        const data = {
-            product_id: product.product_id,
-            quantity: 1,
-            user_id: userId
-        };
+      );
+      
+      if (!result.is_available || newQuantity > result.max_quantity) {
+        alert(`Cannot update quantity: Maximum available is ${result.max_quantity}`);
+        return false;
+      }
+      
+      cartItems = cartItems.map(item =>
+        item.id === productId
+          ? { ...item, quantity: newQuantity }
+          : item
+      );
 
-        const addResponse = await fetch('/api/add-to-cart', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-
-        const result = await addResponse.json();
-        if (result.status) {
-            await fetchCartItems();
-        } else {
-            alert(result.message);
-        }
+      if (browser) {
+        localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+      }
+      
+      return true;
     } catch (error) {
-        console.error('Error:', error);
-        alert('Failed to add item to cart');
+      console.error('Error updating cart quantity:', error);
+      return false;
+    }
+  }
+
+  async function addToCart(product: Product) {
+    const existingItem = cartItems.find(item => item.id === product.product_id);
+    const newQuantity = existingItem ? existingItem.quantity + 1 : 1;
+    
+    try {
+      const result = await ApiService.get<{
+        is_available: boolean, 
+        max_quantity: number, 
+        debug_info: any
+      }>(
+        'check-ingredient-availability',
+        {
+          product_id: product.product_id.toString(),
+          quantity: newQuantity.toString()
+        }
+      );
+      
+      if (!result.is_available || newQuantity > result.max_quantity) {
+        alert(`Cannot add more of this item: Maximum available is ${result.max_quantity}`);
+        return;
+      }
+      
+      if (existingItem) {
+        const updated = await updateCartQuantity(product.product_id, newQuantity);
+        if (!updated) return;
+      } else {
+        cartItems = [
+          ...cartItems,
+          {
+            product_id: product.product_id,
+            id: product.product_id,
+            name: product.name,
+            price: product.price,
+            quantity: 1,
+            image: product.image ? `https://formalytics.me/uploads/${product.image}` : '/images/placeholder.jpg',
+            category: product.category
+          },
+        ];
+
+        if (browser) {
+          localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+        }
+      }
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      alert('Unable to add item to cart');
     }
   }
 
   async function removeFromCart(productId: number) {
     try {
-        const response = await fetch('/api/remove-from-cart', {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                user_id: userId
-            })
+        const result = await ApiService.delete<{
+            status: boolean;
+            message: string;
+        }>('remove-from-cart', {
+            product_id: productId,
+            user_id: userId
         });
 
-        const result = await response.json();
         if (result.status) {
             cartItems = cartItems.filter(item => item.product_id !== productId);
+            if (browser) {
+                localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+            }
         } else {
             alert(result.message);
         }
@@ -232,7 +272,7 @@
   $: total = getTotal();
 
   async function handleProductClick(group: GroupedProduct) {
-    if (['Drinks', 'Pizza'].includes(group.category) && group.variants.length > 1) {
+    if (['Drinks', 'Pizza', 'Burger & Fries', 'Chocolate Series', 'Nachos', 'Cheesecake Series'].includes(group.category) && group.variants.length > 1) {
       selectedProduct = group;
       showSizeModal = true;
     } else {
@@ -260,18 +300,56 @@
     try {
         availabilityLoading.set(true);
         const productIds = products.map(p => p.product_id);
-        const response = await fetch(`/api/get-batch-product-ingredients&product_ids=${JSON.stringify(productIds)}`);
-        const result = await response.json();
         
-        if (result.status && result.data) {
+        // console.log("Checking availability for products:", productIds);
+        
+        const result = await ApiService.get<any>('get-batch-product-ingredients', {
+            product_ids: JSON.stringify(productIds)
+        });
+        
+        // console.log("Raw API Response:", result);
+        
+        // Handle the response whether it's encrypted or not
+        let availabilityData;
+        if (result && typeof result === 'object') {
+            if (result.status && typeof result.data === 'string') {
+                // Handle encrypted data
+                availabilityData = await encryptionService.decrypt(result.data);
+            } else if (result.status && typeof result.data === 'object') {
+                // Handle unencrypted data
+                availabilityData = result.data;
+            } else {
+                // Direct unencrypted response
+                availabilityData = result;
+            }
+        }
+        
+        // console.log("Processed availability data:", availabilityData);
+        
+        if (availabilityData) {
             const availability: Record<number, boolean> = {};
-            Object.entries(result.data).forEach(([productId, data]: [string, any]) => {
-                availability[Number(productId)] = data.isAvailable;
+            Object.entries(availabilityData).forEach(([productId, data]: [string, any]) => {
+                availability[Number(productId)] = data.isAvailable ?? true;
+            });
+            
+            // console.log("Final availability map:", availability);
+            productAvailability.set(availability);
+        } else {
+            // Default to available if no valid data
+            const availability: Record<number, boolean> = {};
+            products.forEach(p => {
+                availability[p.product_id] = true;
             });
             productAvailability.set(availability);
         }
     } catch (error) {
         console.error('Error checking batch availability:', error);
+        // Set all products as available on error
+        const availability: Record<number, boolean> = {};
+        products.forEach(p => {
+            availability[p.product_id] = true;
+        });
+        productAvailability.set(availability);
     } finally {
         availabilityLoading.set(false);
     }
@@ -325,15 +403,17 @@
               <button 
                 type="button" 
                 class="product-card"
-                on:click={() => handleProductClick(group)}
               >
-                <ItemCard product={{
-                  product_id: group.variants[0].product_id,
-                  name: group.name,
-                  image: group.variants[0].image,
-                  price: group.variants[0].price.toString(),
-                  category: group.category
-                }} />
+                <ItemCard 
+                  product={{
+                    product_id: group.variants[0].product_id,
+                    name: group.name,
+                    image: group.variants[0].image,
+                    price: group.variants[0].price.toString(),
+                    category: group.category
+                  }} 
+                  onAddToCart={() => handleProductClick(group)}
+                />
               </button>
             {/each}
           </div>
@@ -342,13 +422,19 @@
     </div>
 
     <!-- Desktop Cart -->
-    <div class="cart-container hidden md:block">
+    <div class="hidden md:block">
       <Cart 
         {cartItems} 
         {userId}
         onUpdateQuantity={updateQuantity}
         onRemoveFromCart={removeFromCart}
         {total}
+        on:cartCleared={() => {
+            cartItems = [];
+            if (browser) {
+                localStorage.removeItem(`cart_${$userStore.userId}`);
+            }
+        }}
       />
     </div>
   </div>
@@ -409,6 +495,13 @@
           onUpdateQuantity={updateQuantity}
           onRemoveFromCart={removeFromCart}
           {total}
+          on:cartCleared={() => {
+              cartItems = [];
+              if (browser) {
+                  localStorage.removeItem(`cart_${$userStore.userId}`);
+              }
+              toggleMobileCart();
+          }}
         />
       </div>
     </div>
@@ -447,13 +540,13 @@
     gap: 0.5rem;
     overflow-x: auto;
     padding: 0.5rem 0;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
   }
 
   .category-tabs::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
+    display: none;
   }
 
   .category-tab {
@@ -478,6 +571,13 @@
     color: white;
   }
 
+  .container {
+    width: 100%;
+    height: 100vh;
+    background-color: #fefae0;
+    overflow: hidden;
+  }
+
   .content {
     display: flex;
     height: calc(100vh - 4rem);
@@ -493,9 +593,8 @@
     height: 100%;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color:  #fefae0;
     scrollbar-color: #fefae0 #fefae0;
-    transition: margin-right 0.3s ease;
+    margin-top: 20px;
   }
 
   .main-content::-webkit-scrollbar {
@@ -507,7 +606,7 @@
   }
 
   .main-content::-webkit-scrollbar-thumb {
-    background: #fefae0;
+    background: #d4a373;
     border-radius: 4px;
   }
 
@@ -515,29 +614,13 @@
     flex: 1;
     overflow-y: auto;
     min-height: 0;
-    scrollbar-width: thin; /* Firefox */
-    scrollbar-color: #fefae0 #fefae0; /* Firefox */
-  }
-
-  .products-container::-webkit-scrollbar {
-    width: 8px; /* Chrome, Safari, Opera */
-  }
-
-  .products-container::-webkit-scrollbar-track {
-    background: #faedcd;
-  }
-
-  .products-container::-webkit-scrollbar-thumb {
-    background: #d4a373;
-    border-radius: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #fefae0 #fefae0;
   }
 
   .products-section {
     padding: 1rem;
   }
-
-
-
 
   .product-card {
     cursor: pointer;
@@ -583,106 +666,10 @@
     color: white;
   }
 
-  .container {
-    width: 100%;
-    height: 100vh;
-    background-color: #fefae0;
-    overflow: hidden;
-  }
-
-  .content {
-    display: flex;
-    height: calc(100vh - 4rem);
-    margin-top: 4rem;
-    overflow: hidden;
-  }
-
-  .main-content {
-    flex: 1;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #fefae0 #fefae0;
-    margin-top: 20px;
-  }
-
-  /* Responsive grid for products */
-  :global(.grid-cols-3) {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
-    padding: 1rem;
-  }
-
-  @media (max-width: 768px) {
-    .content {
-      margin-top: 3rem;
-    }
-
-    .main-content {
-      padding: 0.5rem;
-    }
-
-    :global(.grid-cols-3) {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 0.75rem;
-      padding: 0.5rem;
-    }
-
-    .category-tabs {
-      margin: 0 -0.5rem;
-      padding: 0.5rem;
-    }
-  }
-
-  .mobile-cart-container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 400px;
-    max-height: 90vh;
-    background: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  @media (max-width: 768px) {
-    .mobile-cart-container {
-      width: 95%;
-      max-height: 80vh;
-    }
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  .close-modal-btn {
-    font-size: 1.5rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.5rem;
-    color: #666;
-    transition: color 0.2s;
-  }
-
-  .close-modal-btn:hover {
-    color: #000;
-  }
-
   .cart-container {
     position: fixed;
     right: 0;
-    top: 4rem;
+    top: 0rem;
     width: 400px;
     height: calc(100vh - 4rem);
     background: #fefae0;
@@ -692,34 +679,42 @@
     transition: width 0.3s ease;
   }
 
-  /* Desktop layout */
-  @media (min-width: 1401px) {
-    .main-content {
-      margin-right: 100px;
-    }
+  .mobile-cart-container {
+    position: absolute;
+    top: 5%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
-  /* Large tablets and small desktops */
+  /* Responsive styles */
+  @media (min-width: 1401px) {
+    .main-content {
+          }
+  }
+
   @media (max-width: 1400px) and (min-width: 1024px) {
     .cart-container {
       width: 350px;
     }
     .main-content {
-      margin-right: 100px;
+      
     }
   }
 
-  /* Tablets */
   @media (max-width: 1023px) and (min-width: 768px) {
     .cart-container {
       width: 300px;
     }
     .main-content {
-      margin-right: 200px;
     }
   }
 
-  /* Mobile devices */
   @media (max-width: 767px) {
     .cart-container {
       display: none;
@@ -733,9 +728,13 @@
       width: 100%;
       z-index: 50;
     }
+    :global(.grid-cols-3) {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.75rem;
+      padding: 0.5rem;
+    }
   }
 
-  /* Responsive grid for products */
   :global(.grid-cols-3) {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -743,11 +742,145 @@
     padding: 1rem;
   }
 
+  .cart-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .cart-title {
+    padding: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    border-bottom: 1px solid #eee;
+  }
+
+  .cart-items-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+
+  .cart-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    align-items: center;
+  }
+
+  .cart-item-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+
+  .cart-item-details {
+    flex: 1;
+  }
+
+  .item-name {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+
+  .item-price {
+    color: #666;
+    font-size: 0.875rem;
+  }
+
+  .cart-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .quantity-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .quantity-btn:hover {
+    background: #e5e7eb;
+  }
+
+  .quantity {
+    font-weight: 500;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .cart-footer {
+    padding: 1.5rem;
+    border-top: 1px solid #eee;
+    background: #fafafa;
+    border-radius: 0 0 12px 12px;
+  }
+
+  .customer-name-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+
+  .total-section {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+  }
+
+  .total-amount {
+    color: #DEB887;
+  }
+
+  .checkout-button {
+    width: 100%;
+    padding: 1rem;
+    background: #DEB887;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .checkout-button:hover {
+    background: #d4a373;
+  }
+
+  /* Responsive styles */
   @media (max-width: 768px) {
-    :global(.grid-cols-3) {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 0.75rem;
-      padding: 0.5rem;
+    .cart-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 60vh;
+      border-radius: 12px 12px 0 0;
+      z-index: 100;
+    }
+
+    .cart-items-container {
+      max-height: calc(60vh - 200px);
     }
   }
 </style>

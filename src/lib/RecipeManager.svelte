@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { ApiService } from './services/api';
     
     type Ingredient = {
       inventory_id: number;
@@ -15,7 +16,6 @@
       quantity_needed: number;
       unit_of_measure: string;
       stock_quantity: number;
-      stock_unit_of_measure: string;
     };
   
     export let productId: number;
@@ -26,7 +26,6 @@
     let newIngredient = {
       inventory_id: 0,
       quantity_needed: 0,
-      unit_of_measure: ''
     };
   
     let editingIngredient: number | null = null;
@@ -51,18 +50,27 @@
     });
   
     async function fetchIngredients() {
-      const response = await fetch('/api/get-items');
-      const result = await response.json();
-      if (result.status) {
-        ingredients = result.data;
+      try {
+        const result = await ApiService.get<{status: boolean; data: Ingredient[]}>('get-items');
+        if (result.status) {
+          ingredients = result.data;
+        }
+      } catch (error) {
+        console.error('Error fetching ingredients:', error);
       }
     }
   
     async function fetchProductRecipe() {
-      const response = await fetch(`/api/get-product-ingredients&product_id=${productId}`);
-      const result = await response.json();
-      if (result.status) {
-        productRecipe = result.data;
+      try {
+        const result = await ApiService.get<{status: boolean; data: Recipe[]}>('get-product-ingredients', {
+          product_id: productId.toString()
+        });
+        
+        if (result.status) {
+          productRecipe = result.data;
+        }
+      } catch (error) {
+        console.error('Error fetching recipe:', error);
       }
     }
   
@@ -72,35 +80,28 @@
         return;
       }
   
-      if (!selectedIngredient || !areUnitsCompatible(selectedIngredient.unit_of_measure, newIngredient.unit_of_measure)) {
-        alert('Invalid unit of measure selection');
-        return;
-      }
-  
       try {
-        const response = await fetch('/api/add-product-ingredient', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            product_id: productId,
-            inventory_id: newIngredient.inventory_id,
-            quantity_needed: newIngredient.quantity_needed,
-            unit_of_measure: newIngredient.unit_of_measure
-          })
-        });
+        const requestData = {
+          product_id: productId,
+          inventory_id: newIngredient.inventory_id,
+          quantity_needed: newIngredient.quantity_needed,
+          unit_of_measure: selectedIngredient?.unit_of_measure || 'pieces'
+        };
   
-        const result = await response.json();
-        if (result.status) {
+        const result = await ApiService.post<{
+          status: boolean;
+          message: string;
+          data?: any;
+        }>('add-product-ingredient', requestData);
+  
+        if (result && result.status) {
           await fetchProductRecipe();
           newIngredient = {
             inventory_id: 0,
             quantity_needed: 0,
-            unit_of_measure: ''
           };
         } else {
-          alert(result.message);
+          alert(result?.message || 'Failed to add ingredient');
         }
       } catch (error) {
         console.error('Error:', error);
@@ -111,89 +112,27 @@
     async function removeIngredient(ingredientId: number) {
       if (!confirm('Are you sure you want to remove this ingredient?')) return;
   
-      const response = await fetch('/api/delete-product-ingredient', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      try {
+        const result = await ApiService.delete<{
+          status: boolean;
+          message: string;
+          data?: any;
+        }>('delete-product-ingredient', {
           product_ingredient_id: ingredientId
-        })
-      });
+        });
   
-      const result = await response.json();
-      if (result.status) {
-        await fetchProductRecipe();
-      } else {
-        alert(result.message);
-      }
-    }
-  
-    async function updateIngredientQuantity(ingredient: Recipe) {
-      if (!areUnitsCompatible(ingredient.unit_of_measure, editUnitOfMeasure)) {
-        alert('Invalid unit of measure selection');
-        return;
-      }
-  
-      const response = await fetch('/api/update-product-ingredient', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          product_ingredient_id: ingredient.product_ingredient_id,
-          quantity_needed: editQuantity,
-          unit_of_measure: editUnitOfMeasure
-        })
-      });
-  
-      const result = await response.json();
-      if (result.status) {
-        await fetchProductRecipe();
-        editingIngredient = null;
-      } else {
-        alert(result.message);
+        if (result && result.status) {
+          await fetchProductRecipe();
+        } else {
+          alert(result?.message || 'Failed to remove ingredient');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to remove ingredient');
       }
     }
   
     $: selectedIngredient = ingredients.find(i => i.inventory_id === newIngredient.inventory_id);
-    $: if (selectedIngredient) {
-      newIngredient.unit_of_measure = selectedIngredient.unit_of_measure;
-    }
-  
-    type UnitOfMeasure = 'pieces' | 'grams' | 'kilograms' | 'milliliters' | 'liters' | 'cups' | 'tablespoons' | 'teaspoons';
-  
-    const unitOptions: UnitOfMeasure[] = ['pieces', 'grams', 'kilograms', 'milliliters', 'liters', 'cups', 'tablespoons', 'teaspoons'];
-  
-    let editUnitOfMeasure: UnitOfMeasure = 'pieces';
-  
-    type UnitGroup = 'volume' | 'mass' | 'count';
-  
-    const unitGroups: Record<UnitOfMeasure, UnitGroup> = {
-      pieces: 'count',
-      grams: 'mass',
-      kilograms: 'mass',
-      milliliters: 'volume',
-      liters: 'volume',
-      cups: 'volume',
-      tablespoons: 'volume',
-      teaspoons: 'volume'
-    };
-  
-    const conversionFactors: Record<UnitOfMeasure, number> = {
-      pieces: 1,
-      grams: 1,
-      kilograms: 1000, // in grams
-      milliliters: 1,
-      liters: 1000, // in milliliters
-      cups: 236.588, // in milliliters
-      tablespoons: 14.787, // in milliliters
-      teaspoons: 4.929 // in milliliters
-    };
-  
-    function areUnitsCompatible(unit1: UnitOfMeasure, unit2: UnitOfMeasure): boolean {
-      return unitGroups[unit1] === unitGroups[unit2];
-    }
   </script>
   
   <div class="recipe-manager">
@@ -227,21 +166,10 @@
               type="number" 
               bind:value={newIngredient.quantity_needed}
               placeholder="Quantity needed"
-              class="p-2 border rounded-md flex-1"
+              class="p-2 border rounded-md w-full"
               min="0"
               step="0.01"
             />
-            <select 
-              bind:value={newIngredient.unit_of_measure}
-              class="p-2 border rounded-md"
-              disabled={!selectedIngredient}
-            >
-              {#each unitOptions as unit}
-                {#if !selectedIngredient || areUnitsCompatible(selectedIngredient.unit_of_measure, unit)}
-                  <option value={unit}>{unit}</option>
-                {/if}
-              {/each}
-            </select>
             <button 
               on:click={addIngredient}
               class="bg-green-500 text-white px-4 py-2 rounded-md whitespace-nowrap"
@@ -275,10 +203,9 @@
               <thead class="sticky top-0 bg-white">
                 <tr>
                   <th class="text-left py-2">Ingredient</th>
-                  <th class="text-left py-2">Recipe Qty</th>
-                  <th class="text-left py-2">Recipe Unit</th>
+                  <th class="text-left py-2">Qty</th>
+                  <th class="text-left py-2">Unit</th>
                   <th class="text-left py-2">Stock</th>
-                  <th class="text-left py-2">Stock Unit</th>
                   <th class="text-center py-2">Actions</th>
                 </tr>
               </thead>
@@ -287,56 +214,11 @@
                   <tr class="border-t">
                     <td class="py-2">{ingredient.ingredient_name}</td>
                     <td class="py-2">
-                      {#if editingIngredient === ingredient.product_ingredient_id}
-                        <div class="flex gap-2 items-center">
-                          <input 
-                            type="number" 
-                            bind:value={editQuantity}
-                            class="p-2 border rounded w-20"
-                            min="0"
-                            step="0.01"
-                          />
-                          <select 
-                            bind:value={editUnitOfMeasure}
-                            class="p-2 border rounded"
-                          >
-                            {#each unitOptions as unit}
-                              {#if areUnitsCompatible(ingredient.stock_unit_of_measure, unit)}
-                                <option value={unit}>{unit}</option>
-                              {/if}
-                            {/each}
-                          </select>
-                          <button 
-                            on:click={() => updateIngredientQuantity(ingredient)}
-                            class="text-green-500 hover:text-green-700"
-                          >
-                            Save
-                          </button>
-                          <button 
-                            on:click={() => editingIngredient = null}
-                            class="text-gray-500 hover:text-gray-700"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      {:else}
-                        {ingredient.quantity_needed}
-                      {/if}
+                      {ingredient.quantity_needed}
                     </td>
                     <td class="py-2">{ingredient.unit_of_measure}</td>
                     <td class="py-2">{ingredient.stock_quantity}</td>
-                    <td class="py-2">{ingredient.stock_unit_of_measure}</td>
                     <td class="py-2 flex justify-center gap-2">
-                      <button
-                        on:click={() => {
-                          editingIngredient = ingredient.product_ingredient_id;
-                          editQuantity = ingredient.quantity_needed;
-                          editUnitOfMeasure = ingredient.unit_of_measure as UnitOfMeasure;
-                        }}
-                        class="text-blue-500 hover:text-blue-700"
-                      >
-                        Edit
-                      </button>
                       <button
                         on:click={() => removeIngredient(ingredient.product_ingredient_id)}
                         class="text-red-500 hover:text-red-700"

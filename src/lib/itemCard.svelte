@@ -1,23 +1,40 @@
 <script lang="ts">
-  import { productAvailability } from './stores/productAvailability';
+  import { productAvailability } from './stores/productAvailability.js';
+  import type { MenuItem } from './types.js';
   
-  export let product: {
-    product_id: number;
-    name: string;
-    image: string;
-    price: string;
-    category: string;
+  export let product: MenuItem & {
     is_available?: boolean;
   };
+  export let onAddToCart: () => void;
 
-  $: isAvailable = $productAvailability[product.product_id] ?? true;
+  $: isAvailable = $productAvailability[product.product_id] ?? false;
+  
+  // Function to get correct image URL
+  function getImageUrl(image: string): string {
+    if (!image) return '/images/placeholder.jpg';
+    return `https://formalytics.me/uploads/${image}`;
+  }
+
+  async function handleAddToCart() {
+    if (!isAvailable) {
+      return;
+    }
+    onAddToCart();
+  }
 </script>
 
-<div class="item-card {!isAvailable ? 'unavailable' : ''}">
+<div class="item-card {!isAvailable ? 'unavailable' : ''}" 
+     on:click={handleAddToCart} 
+     role="button" 
+     tabindex="0">
   <div class="image-container">
     <img 
-      src={product.image ? `uploads/${product.image}` : 'placeholder.jpg'} 
+      src={getImageUrl(product.image)}
       alt={product.name} 
+      on:error={(e) => {
+        const img = e.currentTarget as HTMLImageElement;
+        img.src = '/images/placeholder.jpg';
+      }}
     />
   </div>
   <div class="item-details">
@@ -68,6 +85,7 @@
   .unavailable {
     opacity: 0.7;
     pointer-events: none;
+    cursor: not-allowed;
   }
 
   .unavailable-badge {
@@ -81,5 +99,6 @@
     border-radius: 4px;
     font-weight: bold;
     text-transform: uppercase;
+    z-index: 2;
   }
 </style>
