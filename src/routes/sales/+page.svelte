@@ -725,17 +725,17 @@
     <h2 class="text-2xl font-bold mb-4">Sales History</h2>
     
     <!-- Charts Section -->
-    <div class="charts-container">
-      <div class="chart-wrapper">
+    <div class="charts-container grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
         <div id="salesPerPeriodChart"></div>
       </div>
-      <div class="chart-wrapper">
+      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
         <div id="salesPerProductChart"></div>
       </div>
-      <div class="chart-wrapper">
+      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
         <div id="salesPerDayChart"></div>
       </div>
-      <div class="chart-wrapper">
+      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
         <div id="salesPerProductPerDayChart"></div>
       </div>
     </div>
@@ -894,52 +894,10 @@
   }
 
   .charts-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1rem;
     padding: 1rem;
-  }
-
-  .chart-wrapper {
-    min-height: 400px;
-    background-color: white;
+    background: #faedcd;
     border-radius: 0.5rem;
-    padding: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  @media (max-width: 768px) {
-    .content {
-      padding: 0;
-    }
-
-    .sales-container {
-      padding: 0.75rem;
-      height: auto;
-    }
-
-    .charts-container {
-      display: flex;
-      flex-direction: column;
-      padding: 0.5rem;
-      gap: 1rem;
-    }
-
-    .chart-wrapper {
-      min-height: 300px;
-      width: 100%;
-      margin-bottom: 1rem;
-      overflow: hidden;
-    }
-
-    .filters {
-      flex-direction: column;
-      padding: 0.75rem;
-      position: sticky;
-      top: 0;
-      background: #faedcd;
-      z-index: 10;
-    }
+    margin-bottom: 1rem;
   }
 
   .filters {
@@ -957,6 +915,49 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     margin-top: 0.75rem;
+  }
+
+  @media (max-width: 1024px) {
+    .filters {
+      flex-direction: column;
+      padding: 0.75rem;
+    }
+    
+    .filters > * {
+      width: 100%;
+      margin-bottom: 0.75rem;
+    }
+
+    .sales-container {
+      padding: 0.75rem;
+    }
+
+    .filter-buttons {
+      display: flex;
+      overflow-x: auto;
+      gap: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+
+    .filter-buttons button,
+    .filter-buttons select {
+      flex: 0 0 auto;
+      min-width: 150px;
+      white-space: nowrap;
+    }
+
+    .charts-container {
+      padding: 0.75rem;
+      margin: 0.75rem;
+    }
+  }
+
+  .chart-wrapper {
+    min-height: 400px;
+    background-color: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   /* Add global font */
