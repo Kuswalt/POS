@@ -476,39 +476,61 @@
 {#if showMobileCart}
   <div class="fixed inset-0 z-50 md:hidden">
     <div class="absolute inset-0 bg-black bg-opacity-50" on:click={toggleMobileCart}></div>
-    <div class="mobile-cart-container">
-      <div class="h-full overflow-y-auto">
-        <div class="p-4 border-b">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold">Your Cart</h2>
-            <button 
-              class="text-gray-500 hover:text-gray-700"
-              on:click={toggleMobileCart}
-            >
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-        </div>
-        <Cart 
-          {cartItems} 
-          {userId}
-          onUpdateQuantity={updateQuantity}
-          onRemoveFromCart={removeFromCart}
-          {total}
-          on:cartCleared={() => {
-              cartItems = [];
-              if (browser) {
-                  localStorage.removeItem(`cart_${$userStore.userId}`);
-              }
-              toggleMobileCart();
-          }}
-        />
+    <div class="mobile-cart-wrapper">
+      <div class="mobile-cart-header">
+        <h2 class="text-xl font-bold">Your Cart</h2>
+        <button 
+          class="text-gray-500 hover:text-gray-700"
+          on:click={toggleMobileCart}
+        >
+          <i class="fas fa-times"></i>
+        </button>
       </div>
+      <Cart 
+        {cartItems} 
+        {userId}
+        onUpdateQuantity={updateQuantity}
+        onRemoveFromCart={removeFromCart}
+        {total}
+        on:cartCleared={() => {
+          cartItems = [];
+          if (browser) {
+            localStorage.removeItem(`cart_${$userStore.userId}`);
+          }
+          toggleMobileCart();
+        }}
+      />
     </div>
   </div>
 {/if}
 
+<!-- Add floating cart button for mobile -->
+<div class="md:hidden">
+  <button 
+    class="cart-toggle"
+    on:click={toggleMobileCart}
+    aria-label="Toggle Cart"
+  >
+    <i class="fas fa-shopping-cart"></i>
+  </button>
+</div>
+
 <style>
+  .container {
+    width: 100%;
+    height: 100vh;
+    background-color: #fefae0;
+    overflow: hidden;
+    padding-top: 0; /* Default padding */
+  }
+
+  /* Desktop styles */
+  @media (min-width: 769px) {
+    .container {
+      padding-top: 5rem; /* Desktop padding */
+    }
+  }
+
   .search-controls {
     display: flex;
     flex-direction: column;
@@ -540,30 +562,23 @@
     gap: 0.5rem;
     overflow-x: auto;
     padding: 0.5rem 0;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
   }
 
+  /* Hide scrollbar for Chrome, Safari and Opera */
   .category-tabs::-webkit-scrollbar {
     display: none;
   }
 
   .category-tab {
     padding: 0.5rem 1rem;
-    background: #faedcd;
-    border: none;
     border-radius: 0.5rem;
+    background: #faedcd;
+    color: #d4a373;
     white-space: nowrap;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.875rem;
-    color: #4b5563;
-  }
-
-  .category-tab:hover {
-    background: #d4a373;
-    color: white;
+    transition: all 0.2s ease;
+    flex: 0 0 auto;
   }
 
   .category-tab.active {
@@ -571,17 +586,9 @@
     color: white;
   }
 
-  .container {
-    width: 100%;
-    height: 100vh;
-    background-color: #fefae0;
-    overflow: hidden;
-  }
-
   .content {
     display: flex;
     height: calc(100vh - 4rem);
-    margin-top: 4rem;
     overflow: hidden;
   }
 
@@ -590,30 +597,12 @@
     padding: 1rem;
     display: flex;
     flex-direction: column;
-    height: 100%;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #fefae0 #fefae0;
-    margin-top: 20px;
-  }
-
-  .main-content::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .main-content::-webkit-scrollbar-track {
-    background: #faedcd;
-  }
-
-  .main-content::-webkit-scrollbar-thumb {
-    background: #d4a373;
-    border-radius: 4px;
   }
 
   .products-container {
     flex: 1;
     overflow-y: auto;
-    min-height: 0;
     scrollbar-width: thin;
     scrollbar-color: #fefae0 #fefae0;
   }
@@ -679,17 +668,69 @@
     transition: width 0.3s ease;
   }
 
-  .mobile-cart-container {
-    position:relative;
-    top: 17rem;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 400px;
-    max-height: 80vh;
+  .mobile-cart-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 85vh;
     background: #faedcd;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 1.5rem 1.5rem 0 0;
+    box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 51;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .mobile-cart-header {
+    position: sticky;
+    top: 0;
+    background: #faedcd;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 52;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  /* Cart Toggle Button */
+  .cart-toggle {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: #d4a373;
+    color: white;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 49;
+    transition: all 0.3s ease;
+  }
+
+  .cart-toggle i {
+    font-size: 1.25rem;
+  }
+
+  /* Ensure modal backdrop is behind the cart */
+  .fixed.inset-0 {
+    z-index: 50;
   }
 
   /* Responsive styles */
@@ -881,6 +922,327 @@
 
     .cart-items-container {
       max-height: calc(60vh - 200px);
+    }
+  }
+
+  /* ... existing styles ... */
+
+  @media (max-width: 768px) {
+    .content {
+      margin-top: 4rem;
+      padding: 0;
+      height: 100%;
+    }
+
+    .main-content {
+      padding: 0.5rem;
+      margin-top: 0;
+      overflow-x: hidden;
+      padding-bottom: 4rem;
+    }
+
+    .search-controls {
+      position: sticky;
+      top: 0;
+      background: #fefae0;
+      padding: 0.5rem;
+      z-index: 10;
+      margin-bottom: 0.5rem;
+    }
+
+    .search-input {
+      margin-bottom: 0.5rem;
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid #e5e7eb;
+    }
+
+    .category-tabs {
+      padding: 0.5rem;
+      margin: 0;
+      background: #fefae0;
+    }
+
+    .category-tab {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      min-width: auto;
+    }
+
+    .products-section {
+      padding: 0.5rem 0;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    :global(.grid-cols-3) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      padding: 0.5rem;
+      margin: 0;
+    }
+
+    :global(.item-card) {
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    :global(.item-card img) {
+      height: 120px;
+      object-fit: cover;
+    }
+
+    :global(.item-details) {
+      padding: 0.5rem;
+    }
+
+    :global(.item-details h3) {
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+
+    /* Mobile Cart Modal */
+    .mobile-cart-wrapper {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 85vh;
+      background: #faedcd;
+      border-radius: 1.5rem 1.5rem 0 0;
+      box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 51;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .mobile-cart-header {
+      position: sticky;
+      top: 0;
+      background: #faedcd;
+      padding: 1rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 52;
+    }
+
+    /* Cart Toggle Button */
+    .cart-toggle {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #d4a373;
+      color: white;
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      z-index: 49;
+    }
+
+    .cart-toggle i {
+      font-size: 1.25rem;
+    }
+
+    /* Size Modal Adjustments */
+    .modal-content {
+      width: 90%;
+      max-width: none;
+      margin: 1rem;
+      padding: 1rem;
+    }
+
+    .size-option {
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  /* Add animation for cart modal */
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .mobile-cart-wrapper {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  /* Modal backdrop */
+  .fixed.inset-0 {
+    z-index: 1000;
+  }
+
+  /* Cart modal header */
+  .mobile-cart-header {
+    position: sticky;
+    top: 0;
+    background: #faedcd;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    z-index: 1002;
+  }
+
+  /* Update mobile styles */
+  @media (max-width: 768px) {
+    .content {
+      padding: 0;
+      height: 100%;
+    }
+
+    .main-content {
+      padding: 0.5rem;
+      padding-bottom: 4rem;
+    }
+
+    .products-section {
+      padding: 0.5rem 0;
+      margin-bottom: 1rem;
+    }
+
+    :global(.grid-cols-3) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      padding: 0.5rem;
+      margin: 0;
+    }
+
+    .products-container {
+      margin-bottom: 0;
+      padding-bottom: 4rem;
+    }
+  }
+
+  /* Mobile Cart Modal */
+  .mobile-cart-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 85vh;
+    background: #faedcd;
+    border-radius: 1.5rem 1.5rem 0 0;
+    box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 51;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .products-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: #fefae0 #fefae0;
+    padding-bottom: 4rem;
+  }
+
+  .products-section {
+    padding: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .content {
+      padding: 0;
+      height: 100%;
+    }
+
+    .main-content {
+      padding: 0.5rem;
+      padding-bottom: 3rem;
+    }
+
+    .products-section {
+      padding: 0.5rem 0;
+      margin-bottom: 1rem;
+    }
+
+    :global(.grid-cols-3) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      padding: 0.5rem;
+      margin: 0;
+    }
+
+    .products-container {
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .grid {
+      margin-bottom: 0;
+    }
+  }
+
+  /* Cart Toggle Button */
+  .cart-toggle {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: #d4a373;
+    color: white;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 49;
+  }
+
+  @media (max-width: 768px) {
+    .container {
+      padding-top: 0;  /* Mobile padding */
+    }
+
+    .content {
+      padding: 0;
+      height: 100%;
+    }
+
+    .main-content {
+      padding: 0.5rem;
+      padding-bottom: 2rem;  /* Reduced bottom padding */
+    }
+
+    .products-section {
+      padding: 0.5rem 0;
+      margin-bottom: 1rem;
+    }
+
+    :global(.grid-cols-3) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      padding: 0.5rem;
+      margin: 0;
+    }
+
+    .products-container {
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .grid {
+      margin: 0;
+      padding: 0;
     }
   }
 </style>

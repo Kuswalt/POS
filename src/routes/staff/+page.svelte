@@ -191,7 +191,7 @@
 
     @media (max-width: 768px) {
         .container {
-            padding: 1rem 0.5rem;
+            padding: 3rem 0.5rem;
         }
 
         .bg-white {

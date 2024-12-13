@@ -725,35 +725,35 @@
     <h2 class="text-2xl font-bold mb-4">Sales History</h2>
     
     <!-- Charts Section -->
-    <div class="charts-container grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
+    <div class="charts-container">
+      <div class="chart-wrapper">
         <div id="salesPerPeriodChart"></div>
       </div>
-      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
+      <div class="chart-wrapper">
         <div id="salesPerProductChart"></div>
       </div>
-      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
+      <div class="chart-wrapper">
         <div id="salesPerDayChart"></div>
       </div>
-      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
+      <div class="chart-wrapper">
         <div id="salesPerProductPerDayChart"></div>
       </div>
     </div>
 
     <!-- Filter Section -->
-    <div class="filters mb-4 space-y-4">
+    <div class="filters">
       <!-- Search Bar -->
       <div class="flex items-center space-x-4">
         <input
           type="text"
           bind:value={searchQuery}
           placeholder="Search by product name..."
-          class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
         />
       </div>
       
       <!-- Date Filters -->
-      <div class="flex flex-wrap gap-4">
+      <div class="filter-buttons">
         <select
           bind:value={selectedYear}
           class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -876,32 +876,87 @@
 <style>
   .content {
     margin-top: 4rem;
-    padding: 2rem;
+    padding: 0;
     background-color: #fefae0;
     font-family: 'DynaPuff', cursive;
+    min-height: calc(100vh - 4rem);
+    display: flex;
+    flex-direction: column;
   }
 
   .sales-container {
     background: #faedcd;
-    border-radius: 0.5rem;
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    flex: 1;
+    height: calc(100vh - 4rem);
+    overflow-y: auto;
   }
 
-  /* Add some responsive styles */
-  @media (max-width: 1024px) {
-    .filters {
-      flex-direction: column;
-    }
-    
-    .filters > * {
-      width: 100%;
-    }
+  .charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
   }
 
   .chart-wrapper {
     min-height: 400px;
     background-color: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    .content {
+      padding: 0;
+    }
+
+    .sales-container {
+      padding: 0.75rem;
+      height: auto;
+    }
+
+    .charts-container {
+      display: flex;
+      flex-direction: column;
+      padding: 0.5rem;
+      gap: 1rem;
+    }
+
+    .chart-wrapper {
+      min-height: 300px;
+      width: 100%;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .filters {
+      flex-direction: column;
+      padding: 0.75rem;
+      position: sticky;
+      top: 0;
+      background: #faedcd;
+      z-index: 10;
+    }
+  }
+
+  .filters {
+    position: sticky;
+    top: 0;
+    background: #faedcd;
+    padding: 1rem;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+  }
+
+  .filter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
   }
 
   /* Add global font */

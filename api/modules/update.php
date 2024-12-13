@@ -51,6 +51,7 @@ class Update {
             $sql = "UPDATE inventory 
                     SET stock_quantity = :stock_quantity,
                         unit_of_measure = :unit_of_measure,
+                        item_name = :item_name,
                         last_updated = NOW() 
                     WHERE inventory_id = :inventory_id";
 
@@ -58,6 +59,7 @@ class Update {
             $stmt->bindParam(':inventory_id', $data['inventory_id']);
             $stmt->bindParam(':stock_quantity', $quantity);
             $stmt->bindParam(':unit_of_measure', $data['unit_of_measure']);
+            $stmt->bindParam(':item_name', $data['item_name']);
             $stmt->execute();
 
             // Fetch the updated record

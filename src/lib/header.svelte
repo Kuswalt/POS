@@ -29,7 +29,16 @@
 </script>
 
 <style>
-  /* Add these mobile-specific styles */
+  header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: #d4a373;
+    border-bottom: 1px solid #cba17f;
+  }
+
   @media (max-width: 640px) {
     header {
       padding: 0.75rem 1rem;

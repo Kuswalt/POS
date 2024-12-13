@@ -59,13 +59,12 @@
     align-items: center;
     text-align: center;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    max-width: 200px;
     cursor: pointer;
   }
 
   .image-container {
-    width: 176px;
-    height: 200px;
+    width: 100%;
+    aspect-ratio: 1;
     overflow: hidden;
     margin-bottom: 0.5rem;
   }
@@ -100,5 +99,32 @@
     font-weight: bold;
     text-transform: uppercase;
     z-index: 2;
+  }
+
+  /* Mobile styles */
+  @media (max-width: 768px) {
+    .item-card {
+      padding: 0.5rem;
+      border-radius: 12px;
+    }
+    
+    .image-container {
+      margin-bottom: 0.25rem;
+    }
+    
+    .item-details h3 {
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .item-details p {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    
+    .unavailable-badge {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+    }
   }
 </style>

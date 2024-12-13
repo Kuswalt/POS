@@ -49,9 +49,14 @@
 
     function startEdit(item: InventoryItem) {
         editingItem = item.inventory_id;
-        itemName = item.item_name;
-        stockQuantity = item.stock_quantity;
-        unitOfMeasure = item.unit_of_measure;
+        let editValues = {
+            name: item.item_name,
+            quantity: item.stock_quantity,
+            unit: item.unit_of_measure
+        };
+        itemName = editValues.name;
+        stockQuantity = editValues.quantity;
+        unitOfMeasure = editValues.unit;
         isEditModalOpen = true;
     }
 
@@ -60,6 +65,7 @@
         editingItem = null;
         itemName = '';
         stockQuantity = 0;
+        unitOfMeasure = 'pieces';
     }
 
     let errorMessage = '';
@@ -102,29 +108,36 @@
 
     async function updateItemStock(inventoryId: number) {
         try {
+            if (!itemName.trim()) {
+                alert('Item name cannot be empty');
+                return;
+            }
+
             const result = await ApiService.put('update-item-stock', {
                 inventory_id: inventoryId,
+                item_name: itemName.trim(),
                 stock_quantity: stockQuantity,
                 unit_of_measure: unitOfMeasure
             });
 
             if (result.status) {
-                editingItem = null;
                 await fetchItems();
+                closeEditModal();
                 showAlert = true;
                 alertType = 'success';
-                alertMessage = 'Stock updated successfully';
+                alertMessage = 'Item updated successfully';
+                setTimeout(() => showAlert = false, 3000);
             } else {
                 showAlert = true;
                 alertType = 'error';
-                alertMessage = result.message || 'Failed to update stock';
+                alertMessage = result.message || 'Failed to update item';
+                setTimeout(() => showAlert = false, 3000);
             }
-            setTimeout(() => showAlert = false, 3000);
         } catch (error) {
             console.error('Error:', error);
             showAlert = true;
             alertType = 'error';
-            alertMessage = 'Failed to update stock';
+            alertMessage = 'Failed to update item';
             setTimeout(() => showAlert = false, 3000);
         }
     }
@@ -228,16 +241,18 @@
     <Header {y} {innerHeight} />
     <div class="content">
         <main>
-            <div class="product-details">
-                <div class="details">
+            <!-- Product Details Section -->
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6">Add New Item</h2>
+                <div class="input-grid">
                     <input
                         type="text"
                         bind:value={itemName}
-                        placeholder="Product name"
+                        placeholder="Item name"
                         required
                         class="input-field"
                     />
-                    <div class="quantity-input">
+                    <div class="quantity-group">
                         <input
                             type="number"
                             bind:value={stockQuantity}
@@ -257,11 +272,12 @@
                             <option value="teaspoons">Teaspoons</option>
                         </select>
                     </div>
-                    <button on:click={addItemStock}>Add Item</button>
+                    <button on:click={addItemStock} class="add-button">Add Item</button>
                 </div>
             </div>
 
-            <div class="search-bar">
+            <!-- Search Bar -->
+            <div class="search-section">
                 <input 
                     type="text" 
                     bind:value={searchQuery}
@@ -270,13 +286,28 @@
                 />
             </div>
 
-            <div class="stock-table">
-                <table>
+            <!-- Inventory Table -->
+            <div class="table-section">
+                <div class="table-header">
+                    <h3 class="text-lg font-semibold">Current Stock</h3>
+                    <button 
+                        class="delete-all-button"
+                        on:click={async () => {
+                            if (confirm('Are you sure you want to delete ALL stocks? This cannot be undone.')) {
+                                // ... existing delete code ...
+                            }
+                        }}
+                    >
+                        Delete All Stocks
+                    </button>
+                </div>
+
+                <table class="responsive-table">
                     <thead>
                         <tr>
                             <th>Item Name</th>
                             <th>Stock Quantity</th>
-                            <th>Unit of Measure</th>
+                            <th>Unit</th>
                             <th>Last Updated</th>
                             <th>Actions</th>
                         </tr>
@@ -284,17 +315,18 @@
                     <tbody>
                         {#each filteredItems as item}
                             <tr>
-                                <td>{item.item_name}</td>
-                                <td>{item.stock_quantity}</td>
-                                <td>{item.unit_of_measure}</td>
-                                <td>{item.last_updated}</td>
-                                <td class="flex gap-2">
-                                    <button on:click={() => startEdit(item)}>Edit</button>
-                                    <button on:click={() => deleteItemStock(item.inventory_id)}>Delete</button>
-                                    <button 
-                                        on:click={() => showProductsUsingIngredient(item)}
-                                        class="bg-[#d4a373] text-white px-3 py-1 rounded hover:bg-[#c49363] text-sm"
-                                    >
+                                <td data-label="Item Name">{item.item_name}</td>
+                                <td data-label="Stock Quantity">{item.stock_quantity}</td>
+                                <td data-label="Unit">{item.unit_of_measure}</td>
+                                <td data-label="Last Updated">{item.last_updated}</td>
+                                <td class="actions" data-label="Actions">
+                                    <button class="edit-btn" on:click={() => startEdit(item)}>
+                                        Edit
+                                    </button>
+                                    <button class="delete-btn" on:click={() => deleteItemStock(item.inventory_id)}>
+                                        Delete
+                                    </button>
+                                    <button class="used-in-btn" on:click={() => showProductsUsingIngredient(item)}>
                                         Used In Products
                                     </button>
                                 </td>
@@ -307,30 +339,30 @@
     </div>
 </div>
 
-{#if isEditModalOpen && editingItem}
-    <div class="modal-backdrop">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Edit Item Stock</h2>
-                <button class="close-btn" on:click={closeEditModal}>&times;</button>
-            </div>
-            <div class="modal-body">
-                <input 
-                    type="text" 
-                    placeholder="Product name" 
-                    bind:value={itemName} 
-                    class="w-full p-2 border rounded-md"
+{#if isEditModalOpen}
+    <div class="modal-overlay" on:click|self={() => closeEditModal()}>
+        <div class="modal-content" on:click|stopPropagation>
+            <h2 class="text-xl font-bold mb-4">Edit Item</h2>
+            <div class="grid gap-4">
+                <input
+                    type="text"
+                    bind:value={itemName}
+                    placeholder="Item name"
+                    class="input-field"
+                    required
                 />
-                <div class="quantity-input">
-                    <input 
-                        type="number" 
-                        placeholder="Quantity" 
-                        bind:value={stockQuantity} 
-                        class="flex-1 p-2 border rounded-md"
+                <div class="flex gap-4">
+                    <input
+                        type="number"
+                        bind:value={stockQuantity}
+                        min="0"
+                        placeholder="Quantity"
+                        class="input-field"
+                        required
                     />
                     <select 
-                        bind:value={unitOfMeasure}
-                        class="p-2 border rounded-md min-w-[120px]"
+                        bind:value={unitOfMeasure} 
+                        class="input-field"
                     >
                         <option value="pieces">Pieces</option>
                         <option value="grams">Grams</option>
@@ -342,12 +374,23 @@
                         <option value="teaspoons">Teaspoons</option>
                     </select>
                 </div>
-                <div class="modal-actions">
-                    <button class="update-btn" on:click={() => {
-                        updateItemStock(editingItem!);
-                        closeEditModal();
-                    }}>Update</button>
-                    <button class="cancel-btn" on:click={closeEditModal}>Cancel</button>
+                <div class="flex gap-4">
+                    <button
+                        class="flex-1 bg-[#d4a373] text-white py-2 px-4 rounded hover:bg-[#c49363]"
+                        on:click={() => {
+                            if (editingItem) {
+                                updateItemStock(editingItem);
+                            }
+                        }}
+                    >
+                        Update
+                    </button>
+                    <button
+                        class="flex-1 bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600"
+                        on:click={closeEditModal}
+                    >
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
@@ -400,166 +443,157 @@
 
 <style>
     .layout {
-        display: flex;
-        height: 100vh;
-        -webkit-box-flex: 1;
-        -webkit-flex: 1;
-        display: -webkit-box;
-        display: -webkit-flex;
-        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        min-height: 100vh;
     }
+
     .content {
-        display: flex;
-        flex-direction: column;
-        flex-grow: 1;
-        padding: 20px;
         margin-top: 4rem;
-        justify-content: flex-start;
-        overflow-x: hidden;
-        overflow-y: auto;
+        padding: 2rem;
+        background-color: #fefae0;
+    }
+
+    .form-section {
         background: #faedcd;
-        max-width: 1200px;
-        margin-left: auto;
-        margin-right: auto;
-        scrollbar-width: none;
-        scroll-behavior: smooth;
-        scrollbar-color:   #d4a373 #faedcd;
-    }
-    .content::-webkit-scrollbar {
-        width: 2px;
-        background-color: #faedcd;
-    }
-    .content::-webkit-scrollbar-track {
-        background: #faedcd;
-        border-radius: 4px;
-    }
-    .content::-webkit-scrollbar-thumb {
-        background: #d4a373;
-        border-radius: 4px;
-        border: 1px solid #faedcd;
-    }
-    .content::-webkit-scrollbar-thumb:hover {
-        background: #c49262;
-    }
-    .product-details {
-        margin: 20px;
-        text-align: center;
-    }
-    .stock-table {
-        margin: 20px;
-        overflow-x: auto;
-        background: #faedcd;
+        border-radius: 0.5rem;
         padding: 1.5rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
-    .side-nav {
-        margin-top: 50px;
+
+    .input-grid {
+        display: grid;
+        gap: 1rem;
     }
-    table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        background: #fefae0;
-        border-radius: 0.5rem;
-        overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    th, td {
-        text-align: center;
-        border-color: #e9edc9;
-        padding: 0.875rem;
-        transition: background-color 0.2s ease;
-    }
-    th {
-        background: #d4a373;
-        color: white;
-        text-align: center;
-        border: none;
-        padding: 1rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.875rem;
-        letter-spacing: 0.05em;
-    }
-    button {
-        padding: 0.625rem 1rem;
-        border-radius: 0.5rem;
-        font-weight: 500;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        background: #d4a373;
-        color: white;
-        min-width: 80px;
-        font-size: 0.875rem;
-    }
-    
-    .details {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        padding: 1.5rem;
-        width: 100%;
-        background: #faedcd;
-        border-radius: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
-    }
-    
-    .input-field,
-    .quantity-input input,
-    .quantity-input select {
+
+    .input-field {
         padding: 0.75rem;
-        border: 1px solid #ddd;
+        border: 1px solid #e5e7eb;
         border-radius: 0.5rem;
-        font-size: 1rem;
-        min-height: 2.5rem;
         width: 100%;
-        background: #fefae0;
-        border: 1px solid #d4a373;
     }
-    
-    .quantity-input {
+
+    .quantity-group {
         display: flex;
-        gap: 0.5rem;
-        width: 100%;
+        gap: 1rem;
     }
-    
-    button {
-        padding: 0.75rem 1rem;
+
+    .add-button {
+        background: #d4a373;
+        color: white;
+        padding: 0.75rem;
         border-radius: 0.5rem;
-        font-weight: 500;
-        min-height: 2.5rem;
-        width: auto;
-        white-space: nowrap;
-    }
-    
-    .search-bar {
-        margin: 1rem auto 2rem;
-        text-align: center;
-        max-width: 500px;
         width: 100%;
     }
-    
+
+    .search-section {
+        margin-bottom: 1rem;
+    }
+
     .search-input {
         width: 100%;
-        padding: 12px 16px;
-        border: 2px solid #d4a373;
-        border-radius: 8px;
-        font-size: 16px;
-        background: #fefae0;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
     }
-    
-    .search-input:focus {
-        outline: none;
-        border-color: #c49262;
-        box-shadow: 0 2px 8px rgba(212, 163, 115, 0.2);
+
+    .table-section {
+        background: #faedcd;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
-    
-    .modal-backdrop {
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .delete-all-button {
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+    }
+
+    /* Mobile styles */
+    @media (max-width: 768px) {
+        .content {
+            padding: 1rem;
+        }
+
+        .form-section, .table-section {
+            padding: 1rem;
+        }
+
+        .quantity-group {
+            flex-direction: column;
+        }
+
+        .responsive-table tr {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            margin-bottom: 0.75rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 0.75rem;
+        }
+
+        .responsive-table td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .responsive-table td:last-child {
+            border-bottom: none;
+        }
+
+        .responsive-table thead {
+            display: none;
+        }
+
+        .responsive-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            margin-right: 1rem;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .actions button {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+
+        .edit-btn {
+            background: #3B82F6;
+            color: white;
+        }
+
+        .delete-btn {
+            background: #DEB887;
+            color: white;
+        }
+
+        .used-in-btn {
+            background: #d4a373;
+            color: white;
+        }
+    }
+
+    .modal-overlay {
         position: fixed;
         top: 0;
         left: 0;
@@ -569,466 +603,70 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        z-index: 1000;
-        padding: 1rem;
+        z-index: 50;
     }
-    
+
     .modal-content {
         background: white;
         padding: 1.5rem;
         border-radius: 0.5rem;
-        width: 95%;
         max-width: 500px;
-        max-height: 85vh;
-        overflow-y: auto;
-        position: relative;
-        background: #fefae0;
-    }
-    
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-    
-    .close-btn {
-        background: none;
-        border: none;
-        font-size: 24px;
-        cursor: pointer;
-    }
-    
-    .modal-body {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .modal-actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 20px;
-    }
-    
-    .update-btn {
-        background: #4CAF50;
-        color: white;
-    }
-    
-    .cancel-btn {
-        background: #f44336;
-        color: white;
-    }
-    
-    .details button {
-        background-color: #4CAF50;
-        color: white;
-    }
-    
-    .details button:hover {
-        background-color: #45a049;
-    }
-    
-    td button:first-child {
-        background-color: #2196F3;
-        color: white;
-    }
-    
-    td button:first-child:hover {
-        background-color: #1976D2;
-    }
-    
-    td button:last-child {
-        background-color: #f44336;
-        color: white;
-    }
-    
-    td button:last-child:hover {
-        background-color: #d32f2f;
-    }
-    
-    .quantity-input {
-        display: flex;
-        gap: 5px;
-        display: -webkit-box;
-        display: -webkit-flex;
-        -webkit-flex-wrap: wrap;
-    }
-    
-    .quantity-input input,
-    .quantity-input select {
-        padding: 5px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-    }
-    
-    .quantity-input select {
-        min-width: 120px;
-    }
-    
-    .alert-container {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1000;
-        width: 90%;
-        max-width: 500px;
-    }
-    
-    .input-field {
-        /* Add your existing input styles */
-    }
-    
-    .input-field:invalid {
-        border-color: red;
-    }
-    
-    .product-list {
-        margin: 1rem 0;
-        padding: 0;
-        list-style: none;
-    }
-    
-    .product-list li {
-        padding: 0.5rem;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .close-btn {
-        margin-top: 1rem;
-        padding: 0.5rem 1rem;
-        background-color: #ef4444;
-        color: white;
-        border-radius: 0.25rem;
-    }
-    
-    .close-btn:hover {
-        background-color: #dc2626;
-    }
-    
-    .stock-table::-webkit-scrollbar {
-        width: 1px;
-        height: 1px;
-        background-color: #faedcd;
-    }
-    
-    .stock-table::-webkit-scrollbar-track {
-        background: #faedcd;
-        border-radius: 3px;
-    }
-    
-    .stock-table::-webkit-scrollbar-thumb {
-        background: #d4a373;
-        border-radius: 3px;
-        border: 1px solid #faedcd;
-    }
-    
-    @media screen and (max-width: 768px) {
-        .content {
-            padding: 10px;
-            overflow-x: hidden;
-        }
-    
-        table {
-            display: block;
-            overflow-x: auto;
-            white-space: nowrap;
-            width: 100%;
-        }
-    
-        .modal-content {
-            width: 95%;
-            max-height: 90vh;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-    }
-    
-    /* Add these media queries to handle mobile responsiveness */
-    @media screen and (max-width: 768px) {
-        .details {
-            flex-direction: column;
-            gap: 10px;
-            width: 100%;
-            padding: 0 10px;
-        }
-    
-        .quantity-input {
-            flex-direction: column;
-            width: 100%;
-        }
-    
-        .quantity-input input,
-        .quantity-input select,
-        .details input,
-        .details button {
-            width: 100%;
-            min-height: 40px;
-        }
-    
-        .stock-table {
-            margin: 10px 0;
-            padding: 1rem;
-            background-color: #faedcd;
-        }
-    
-        table {
-            min-width: 600px; /* Minimum width to ensure content is readable */
-        }
-    
-        td {
-            white-space: nowrap;
-            padding: 8px 4px;
-        }
-    
-        td.flex {
-            display: flex;
-            flex-wrap: nowrap;
-            gap: 4px;
-        }
-    
-        td button {
-            padding: 6px 8px;
-            font-size: 12px;
-            white-space: nowrap;
-            min-width: auto;
-        }
-    }
-    
-    /* Add these to your existing modal styles for better mobile display */
-    @media screen and (max-width: 768px) {
-        .modal-content {
-            width: 95%;
-            padding: 15px;
-            margin: 10px;
-        }
-    
-        .modal-body .quantity-input {
-            flex-direction: column;
-            width: 100%;
-        }
-    
-        .modal-body input,
-        .modal-body select {
-            width: 100%;
-            min-height: 40px;
-        }
-    
-        .modal-actions {
-            flex-direction: column;
-            gap: 8px;
-        }
-    
-        .modal-actions button {
-            width: 100%;
-        }
-    }
-    
-    /* Responsive adjustments */
-    @media screen and (min-width: 768px) {
-        .details {
-            flex-wrap: nowrap;
-            align-items: center;
-        }
-    
-        .input-field {
-            flex: 2;
-        }
-    
-        .quantity-input {
-            flex: 2;
-            flex-direction: row;
-        }
-    
-        .quantity-input input {
-            flex: 1;
-        }
-    
-        .quantity-input select {
-            width: auto;
-            min-width: 120px;
-        }
-    
-        button {
-            flex: 1;
-            max-width: 150px;
-        }
-    }
-    
-    /* Table responsive styles */
-    .stock-table {
-        overflow-x: auto;
-        margin: 1rem;
-        border-radius: 0.5rem;
-        background: #faedcd;
-    }
-    
-    table {
-        min-width: 100%;
-    }
-    
-    @media screen and (max-width: 767px) {
-        td.flex {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-    
-        td.flex button {
-            width: 100%;
-            margin: 0;
-        }
-    }
-    
-    td.flex {
-        display: flex;
-        gap: 4px;
-        justify-content: center;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    
-    td.flex button {
-        font-size: 0.75rem; /* 12px */
-        padding: 0.375rem 0.5rem; /* 6px 8px */
-        min-width: auto;
-        flex: 1;
-        white-space: nowrap;
-        max-width: fit-content;
-    }
-    
-    @media screen and (max-width: 768px) {
-        .details {
-            flex-direction: column;
-            gap: 10px;
-            width: 100%; /* Changed from 60% to 100% */
-            padding: 0 10px;
-        }
-    
-        td.flex {
-            padding: 4px;
-            min-width: 120px;
-        }
-    
-        td.flex button {
-            font-size: 0.7rem;
-            padding: 4px 6px;
-            margin: 2px;
-        }
-    
-        /* Adjust the "Used In Products" button specifically */
-        td.flex button:last-child {
-            font-size: 0.7rem;
-            padding: 4px 6px;
-            white-space: normal;
-            text-align: center;
-            line-height: 1;
-        }
-    
-        table {
-            min-width: 600px;
-            font-size: 0.875rem; /* Slightly smaller font for table content */
-        }
-    
-        th, td {
-            padding: 6px 4px;
-        }
-    }
-    
-    /* Add specific styles for the action buttons container */
-    .action-buttons {
-        display: flex;
-        gap: 4px;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
-    /* Adjust the main add item button for mobile */
-    @media screen and (max-width: 768px) {
-        .details button {
-            padding: 8px 12px;
-            font-size: 0.875rem;
-            height: auto;
-            width: auto;
-        }
-    
-        .input-field,
-        .quantity-input input,
-        .quantity-input select {
-            padding: 8px;
-            font-size: 0.875rem;
-        }
-    }
-    
-    /* Add smooth scrolling for modal content */
-    .modal-content {
-        scrollbar-width: thin;
-        scrollbar-color: #d4a373 #faedcd;
-    }
-    
-    .modal-content::-webkit-scrollbar {
-        width: 1px;
-    }
-    
-    .modal-content::-webkit-scrollbar-track {
-        background: #faedcd;
-        border-radius: 3px;
-    }
-    
-    .modal-content::-webkit-scrollbar-thumb {
-        background: #d4a373;
-        border-radius: 3px;
-        border: 1px solid #faedcd;
-    }
-    
-    @media screen and (max-width: 768px) {
-        .modal-content button {
-            width: 22%;
-            padding: 6px;
-            font-size: 1rem;
-            margin-top: 1rem;
-            text-align: center;
-        }
-
-        .modal-content {
-            width: 95%;
-            max-width: none;
-            margin: 10px;
-            padding: 1rem;
-        }
-    }
-    
-    /* Add hover effect for scrollbar thumb */
-    .stock-table::-webkit-scrollbar-thumb:hover,
-    .modal-content::-webkit-scrollbar-thumb:hover {
-        background: #c49262;
-    }
-
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
-
-    .modal-content {
-        background: white;
-        padding: 2rem;
-        border-radius: 0.5rem;
-        max-width: 600px;
         width: 90%;
         max-height: 90vh;
         overflow-y: auto;
+    }
+
+    /* Mobile styles for modals */
+    @media (max-width: 768px) {
+        .modal-content {
+            width: 95%;
+            margin: 1rem;
+            padding: 1rem;
+        }
+    }
+
+    .actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .actions button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        transition: opacity 0.2s;
+        color: white;
+    }
+
+    /* Action button colors */
+    button.edit-btn {
+        background-color: #3B82F6;  /* Blue */
+    }
+
+    button.delete-btn {
+        background-color: #DEB887;  /* Tan */
+    }
+
+    button.used-in-btn {
+        background-color: #d4a373;  /* Brown */
+    }
+
+    /* Hover effects */
+    .actions button:hover {
+        opacity: 0.9;
+    }
+
+    @media (max-width: 768px) {
+        /* ... mobile styles ... */
+
+        .actions {
+            flex-direction: column;
+        }
+
+        .actions button {
+            width: 100%;
+            text-align: center;
+            padding: 0.75rem;
+        }
     }
 </style>
