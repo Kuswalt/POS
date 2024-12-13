@@ -71,7 +71,7 @@
     <div class="logo-img mx-auto mb-2 mt-8 relative animate-float">
         <div class="absolute inset-0 blur-xl bg-[#d4a373]/30 rounded-full"></div>
         <img 
-            src="/images/logo.png" 
+            src="/images/last.png" 
             class="logo w-[250px] h-[250px] md:w-[1000px] md:h-[400px] relative z-10 filter drop-shadow-[0_10px_15px_rgba(212,163,115,0.3)]" 
             alt="Logo"
         >
