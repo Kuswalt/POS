@@ -13,6 +13,32 @@
   }
 </script>
 
+<style>
+  /* Add responsive styles */
+  @media (max-width: 768px) {
+    .flex-row {
+      padding: 0.5rem;
+    }
+
+    .w-20 {
+      width: 4rem;
+    }
+
+    .space-y-2 {
+      gap: 0.5rem;
+    }
+
+    .h-12.w-12 {
+      height: 2.5rem;
+      width: 2.5rem;
+    }
+
+    i {
+      font-size: 1rem;
+    }
+  }
+</style>
+
 <div class="flex flex-row h-[90vh] w-auto flex-shrink-0 pl-4 pr-2 py-2 mt-5">
   <div class="flex flex-col items-center py-2 flex-shrink-0 w-20 bg-[#d4a373] rounded-2xl h-full">
     <button 

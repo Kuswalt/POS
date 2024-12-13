@@ -828,53 +828,45 @@
 
     <!-- Table -->
     <div class="overflow-x-auto">
-      <table class="min-w-full bg-white rounded-lg overflow-hidden">
-        <thead class="bg-gray-100">
+      <table class="responsive-table">
+        <thead>
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            <th>Staff</th>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Customer Name</th>
+            <th>Amount Paid</th>
+            <th>Total Amount</th>
+            <th>Date</th>
+            <th>Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200">
-          {#if filteredSalesData.length === 0}
+        <tbody>
+          {#each filteredSalesData as sale}
             <tr>
-              <td colspan="8" class="px-6 py-4 text-center text-gray-500">
-                No sales data available
+              <td data-label="Staff">{sale.username}</td>
+              <td data-label="Product">{sale.product_name}</td>
+              <td data-label="Quantity">{sale.quantity}</td>
+              <td data-label="Customer">{sale.customer_name}</td>
+              <td data-label="Amount Paid">₱{parseFloat(sale.amount_paid).toFixed(2)}</td>
+              <td data-label="Total">₱{parseFloat(sale.total_amount).toFixed(2)}</td>
+              <td data-label="Date">{new Date(sale.order_date).toLocaleDateString()}</td>
+              <td class="actions" data-label="Actions">
+                <button
+                  on:click={() => deleteOrder(sale.order_id)}
+                  class="text-red-600 hover:text-red-900 font-medium"
+                >
+                  Delete
+                </button>
+                <button
+                  on:click={() => archiveSale(sale.order_id)}
+                  class="text-blue-600 hover:text-blue-900 font-medium"
+                >
+                  Archive
+                </button>
               </td>
             </tr>
-          {:else}
-            {#each filteredSalesData as sale}
-              <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">{sale.username}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{sale.product_name}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{sale.quantity}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{sale.customer_name}</td>
-                <td class="px-6 py-4 whitespace-nowrap">₱{parseFloat(sale.amount_paid).toFixed(2)}</td>
-                <td class="px-6 py-4 whitespace-nowrap">₱{parseFloat(sale.total_amount).toFixed(2)}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{new Date(sale.order_date).toLocaleDateString()}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <button
-                    on:click={() => deleteOrder(sale.order_id)}
-                    class="text-red-600 hover:text-red-900 font-medium mr-2"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    on:click={() => archiveSale(sale.order_id)}
-                    class="text-blue-600 hover:text-blue-900 font-medium"
-                  >
-                    Archive
-                  </button>
-                </td>
-              </tr>
-            {/each}
-          {/if}
+          {/each}
         </tbody>
       </table>
     </div>
@@ -896,21 +888,8 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
-  /* Make table header sticky */
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background-color: #d4a373;
-    color: white;
-  }
-
   /* Add some responsive styles */
   @media (max-width: 1024px) {
-    .overflow-x-auto {
-      max-width: 100vw;
-    }
-    
     .filters {
       flex-direction: column;
     }
@@ -922,7 +901,7 @@
 
   .chart-wrapper {
     min-height: 400px;
-    background-color: white; /* Keep chart background white for better visibility */
+    background-color: white;
   }
 
   /* Add global font */

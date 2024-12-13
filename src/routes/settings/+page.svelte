@@ -51,6 +51,9 @@
           image: item.image,
           imageUrl: item.image ? `/POS/uploads/${item.image}` : '/placeholder.jpg'
         }));
+        
+        // Check ingredients after fetching items
+        await checkProductIngredients();
       }
     } catch (error) {
       console.error('Error fetching items:', error);
@@ -58,6 +61,27 @@
       alertType = 'error';
       alertMessage = "Failed to fetch menu items";
       setTimeout(() => showAlert = false, 3000);
+    }
+  }
+
+  async function checkProductIngredients() {
+    try {
+        // Check ingredients for each item
+        const ingredientChecks = await Promise.all(
+            items.map(async (item) => {
+                const result = await ApiService.get<{status: boolean; data: any[]}>('get-product-ingredients', {
+                    product_id: item.product_id.toString()
+                });
+                return {
+                    ...item,
+                    has_ingredients: result.status && result.data && result.data.length > 0
+                };
+            })
+        );
+        
+        items = ingredientChecks;
+    } catch (error) {
+        console.error('Error checking ingredients:', error);
     }
   }
 
@@ -260,9 +284,17 @@
         if (result.status) {
             selectedProduct = {
                 ...product,
+                has_ingredients: result.data.length > 0,
                 ingredients: result.data
             };
             showRecipeManager = true;
+            
+            // Update the item in the items array
+            items = items.map(item => 
+                item.product_id === product.product_id 
+                    ? { ...item, has_ingredients: result.data.length > 0 }
+                    : item
+            );
         } else {
             alertMessage = "Failed to load recipe ingredients";
             alertType = 'error';
@@ -275,6 +307,20 @@
         alertType = 'error';
         showAlert = true;
         setTimeout(() => showAlert = false, 3000);
+    }
+  }
+
+  async function handleRecipeUpdate(event: CustomEvent) {
+    const { hasIngredients } = event.detail;
+    if (selectedProduct) {
+        // Update the selected product
+        selectedProduct.has_ingredients = hasIngredients;
+        // Update the item in the items array
+        items = items.map(item => 
+            item.product_id === selectedProduct.product_id 
+                ? { ...item, has_ingredients: hasIngredients }
+                : item
+        );
     }
   }
 </script>
@@ -428,14 +474,21 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {#each filterItems(items, searchQuery) as item (item.product_id)}
         <div class="item-card">
-          <img 
-            src={item.image instanceof File ? 
-                URL.createObjectURL(item.image) : 
-                `https://formalytics.me/uploads/${item.image}`}
-            alt={item.name} 
-            class="item-image" 
-            on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
-          />
+          <div class="relative">
+            <img 
+              src={item.image instanceof File ? 
+                  URL.createObjectURL(item.image) : 
+                  `https://formalytics.me/uploads/${item.image}`}
+              alt={item.name} 
+              class="item-image" 
+              on:error={(e) => (e.currentTarget as HTMLImageElement).src = '/images/logo.png'}
+            />
+            <div class="absolute top-2 right-2">
+              <span class="px-2 py-1 rounded-full text-xs font-bold {item.has_ingredients ? 'bg-green-500' : 'bg-red-500'} text-white">
+                {item.has_ingredients ? 'Has Recipe' : 'No Recipe'}
+              </span>
+            </div>
+          </div>
           <div class="item-details">
             <h3 class="font-bold">{item.name}</h3>
             <p>₱{item.price}</p>
@@ -448,9 +501,9 @@
               <button on:click={() => deleteMenuItem(item.product_id)} class="delete-btn">Delete</button>
               <button
                 on:click={() => openRecipeManager(item)}
-                class="bg-[#d4a373] text-white px-2 py-1 rounded-md text-sm hover:bg-[#bcc39e]"
+                class="bg-[#d4a373] text-white px-2 py-1 rounded-md text-sm hover:bg-[#bcc39e] {!item.has_ingredients ? 'animate-pulse' : ''}"
               >
-                Manage Recipe
+                {item.has_ingredients ? 'Manage Recipe' : 'Add Recipe'}
               </button>
             </div>
           </div>
@@ -466,10 +519,28 @@
       <RecipeManager 
         productId={selectedProduct.product_id}
         productName={selectedProduct.name}
+        on:recipeUpdated={handleRecipeUpdate}
       />
       <button
         class="mt-4 bg-gray-500 text-white px-4 py-2 rounded-md"
-        on:click={() => showRecipeManager = false}
+        on:click={async () => {
+            // Check recipe status before closing
+            const result = await ApiService.get<{status: boolean; data: any[]}>('get-product-ingredients', {
+                product_id: selectedProduct.product_id.toString()
+            });
+
+            // Update the status
+            if (result.status) {
+                const hasIngredients = result.data.length > 0;
+                selectedProduct.has_ingredients = hasIngredients;
+                items = items.map(item => 
+                    item.product_id === selectedProduct.product_id 
+                        ? { ...item, has_ingredients: hasIngredients }
+                        : item
+                );
+            }
+            showRecipeManager = false;
+        }}
       >
         Close
       </button>
@@ -614,5 +685,72 @@
 
   .header {
     z-index: 8000;
+  }
+
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .relative {
+    position: relative;
+  }
+
+  .absolute {
+    position: absolute;
+  }
+
+  @media (max-width: 768px) {
+    .settings-content {
+      margin-top: 4rem;
+      padding: 0.5rem;
+    }
+
+    .grid-cols-2 {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .form-section {
+      padding: 1rem;
+    }
+
+    .item-card {
+      max-width: none;
+      width: 100%;
+    }
+
+    .modal-content {
+      width: 95%;
+      margin: 1rem;
+      padding: 1rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    .item-image {
+      height: 150px;
+    }
+
+    .item-actions {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .item-actions button {
+      width: 100%;
+    }
   }
 </style>

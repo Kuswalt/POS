@@ -349,4 +349,48 @@ class Delete {
             ];
         }
     }
+
+    public function deleteAllStocks() {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // First check if any products are using ingredients
+            $checkSql = "SELECT DISTINCT i.inventory_id, i.item_name, p.name as product_name 
+                         FROM inventory i
+                         JOIN product_ingredients pi ON i.inventory_id = pi.inventory_id 
+                         JOIN product p ON pi.product_id = p.product_id";
+            
+            $stmt = $conn->prepare($checkSql);
+            $stmt->execute();
+            $usedIngredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (count($usedIngredients) > 0) {
+                return [
+                    "status" => false,
+                    "message" => "Cannot delete all stocks - some ingredients are being used in products",
+                    "usedIngredients" => $usedIngredients
+                ];
+            }
+            
+            // If no ingredients are being used, proceed with deletion
+            $sql = "DELETE FROM inventory";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "All stocks deleted successfully"
+            ];
+            
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to delete stocks: " . $e->getMessage()
+            ];
+        }
+    }
 }

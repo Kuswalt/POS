@@ -1,10 +1,11 @@
 export interface MenuItem {
     product_id: number;
     name: string;
-    image: string;
+    image: string | File;
     price: number | string;
     category: string;
     size?: string;
+    has_ingredients?: boolean;
 }
 
 export interface MenuItemResponse {

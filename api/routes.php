@@ -937,6 +937,9 @@ try {
                         ]);
                     }
                     break;
+                case 'delete-all-stocks':
+                    echo json_encode($delete->deleteAllStocks());
+                    break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);
                     http_response_code(403);

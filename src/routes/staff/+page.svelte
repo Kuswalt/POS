@@ -117,30 +117,20 @@
             <h1 class="text-2xl font-bold mb-6">Staff Management</h1>
             
             <div class="overflow-x-auto">
-                <table class="min-w-full bg-white">
-                    <thead class="bg-gray-100">
+                <table class="responsive-table">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                User ID
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Username
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Current Role
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Change Role
-                            </th>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Current Role</th>
+                            <th>Change Role</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody>
                         {#each staff as member}
                             <tr class={isCurrentUser(member.User_id) ? 'bg-[#faedcd] bg-opacity-50' : ''}>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    {member.User_id}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap flex items-center gap-2">
+                                <td data-label="User ID">{member.User_id}</td>
+                                <td data-label="Username" class="flex items-center gap-2">
                                     {member.username}
                                     {#if isCurrentUser(member.User_id)}
                                         <span class="px-2 py-1 text-xs font-semibold rounded-full bg-[#d4a373] text-white">
@@ -148,7 +138,7 @@
                                         </span>
                                     {/if}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td data-label="Current Role">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                         {member.role === 1 ? 'bg-green-100 text-green-800' : 
                                          member.role === 0 ? 'bg-blue-100 text-blue-800' : 
@@ -156,7 +146,7 @@
                                         {getRoleDisplay(member.role)}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td data-label="Change Role">
                                     <select 
                                         class="block w-full px-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md
                                             {isCurrentUser(member.User_id) ? 'bg-gray-100' : ''}"
@@ -168,11 +158,6 @@
                                         <option value={0}>Restricted-access</option>
                                         <option value={2}>No-access</option>
                                     </select>
-                                    {#if isCurrentUser(member.User_id)}
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            Cannot modify your own role
-                                        </div>
-                                    {/if}
                                 </td>
                             </tr>
                         {/each}
@@ -189,12 +174,28 @@
         min-height: calc(100vh - 4rem);
     }
 
+    .bg-white {
+        background: #faedcd;
+        padding: 1.5rem;
+    }
+
     /* Add smooth transition for row highlight */
     tr {
         transition: background-color 0.2s ease;
     }
-    /* Add hover effect except for current user row */
-    tr:not([class*="bg-[#faedcd]"]):hover {
-        background-color: #fefae0;
+
+    /* Style for current user row */
+    tr.current-user {
+        background-color: rgba(212, 163, 115, 0.1);
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 1rem 0.5rem;
+        }
+
+        .bg-white {
+            padding: 1rem;
+        }
     }
 </style>

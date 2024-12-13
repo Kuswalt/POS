@@ -28,6 +28,27 @@
   };
 </script>
 
+<style>
+  /* Add these mobile-specific styles */
+  @media (max-width: 640px) {
+    header {
+      padding: 0.75rem 1rem;
+    }
+
+    .font-medium {
+      font-size: 1.25rem;
+    }
+
+    .dropdown-menu {
+      width: 100%;
+      left: 0;
+      margin-top: 0.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+  }
+</style>
+
 <header
   class={"fixed z-[10] top-0 w-full duration-200 px-6 flex items-center justify-between border-b border-solid " +
     (y > 0 ? " py-4 bg-[#d4a373] border-[#cba17f]" : " py-6 bg-[#d4a373] border-[#cba17f]")}

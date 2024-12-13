@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { ApiService } from './services/api';
+    import { createEventDispatcher } from 'svelte';
     
     type Ingredient = {
       inventory_id: number;
@@ -33,6 +34,8 @@
   
     let searchIngredient = '';
     let searchRecipe = '';
+  
+    const dispatch = createEventDispatcher();
   
     $: filteredIngredients = ingredients.filter(ingredient => 
       ingredient.item_name.toLowerCase().includes(searchIngredient.toLowerCase())
@@ -100,6 +103,7 @@
             inventory_id: 0,
             quantity_needed: 0,
           };
+          dispatch('recipeUpdated', { hasIngredients: true });
         } else {
           alert(result?.message || 'Failed to add ingredient');
         }
@@ -123,6 +127,9 @@
   
         if (result && result.status) {
           await fetchProductRecipe();
+          if (productRecipe.length <= 1) {
+            dispatch('recipeUpdated', { hasIngredients: false });
+          }
         } else {
           alert(result?.message || 'Failed to remove ingredient');
         }
@@ -183,7 +190,34 @@
       <!-- Recipe List Section -->
       <div class="recipe-list-section">
         <div class="sticky top-0 bg-white py-2 space-y-2">
-          <h3 class="text-lg font-semibold">Current Recipe</h3>
+          <div class="flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Current Recipe</h3>
+            {#if productRecipe.length > 0}
+                <button 
+                    class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
+                    on:click={async () => {
+                        if (confirm('Are you sure you want to delete ALL ingredients from this recipe?')) {
+                            try {
+                                const deletePromises = productRecipe.map(ingredient => 
+                                    ApiService.delete('delete-product-ingredient', {
+                                        product_ingredient_id: ingredient.product_ingredient_id
+                                    })
+                                );
+                                
+                                await Promise.all(deletePromises);
+                                await fetchProductRecipe();
+                                dispatch('recipeUpdated', { hasIngredients: false });
+                            } catch (error) {
+                                console.error('Error deleting ingredients:', error);
+                                alert('Failed to delete all ingredients');
+                            }
+                        }
+                    }}
+                >
+                    Delete All Ingredients
+                </button>
+            {/if}
+          </div>
           <input 
             type="text"
             bind:value={searchRecipe}
@@ -306,6 +340,38 @@
   
       th, td {
         padding: 0.25rem;
+      }
+    }
+  
+    /* Add responsive styles */
+    @media (max-width: 768px) {
+      .recipe-manager {
+        height: auto;
+        max-height: none;
+        margin: 0;
+        border-radius: 0;
+      }
+
+      .recipe-container {
+        padding: 0.75rem;
+        gap: 0.75rem;
+      }
+
+      .add-ingredient-section {
+        padding: 0.75rem;
+      }
+
+      .recipe-table-container {
+        font-size: 0.875rem;
+      }
+
+      table {
+        min-width: 500px;
+      }
+
+      .recipe-list-section {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
     }
   </style>
