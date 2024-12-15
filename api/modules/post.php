@@ -273,13 +273,16 @@ class Post {
 
     public function addToCart($data) {
         global $conn;
+        
         try {
-            // Check if item already exists in cart
-            $checkSql = "SELECT quantity FROM cart 
-                        WHERE product_id = :product_id 
-                        AND user_id = :user_id";
+            $conn->beginTransaction();
             
-            $stmt = $conn->prepare($checkSql);
+            // Lock the cart row for this user/product
+            $lockSql = "SELECT quantity FROM cart 
+                        WHERE product_id = :product_id 
+                        AND user_id = :user_id 
+                        FOR UPDATE";
+            $stmt = $conn->prepare($lockSql);
             $stmt->bindParam(':product_id', $data['product_id']);
             $stmt->bindParam(':user_id', $data['user_id']);
             $stmt->execute();
@@ -303,11 +306,14 @@ class Post {
             $stmt->bindParam(':quantity', $data['quantity']);
             $stmt->execute();
             
+            $conn->commit();
+            
             return [
                 "status" => true,
                 "message" => "Item added to cart successfully"
             ];
         } catch (PDOException $e) {
+            $conn->rollBack();
             return [
                 "status" => false,
                 "message" => $e->getMessage()

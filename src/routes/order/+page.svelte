@@ -12,6 +12,7 @@
   import { ApiService } from '$lib/services/api';
   import type { BatchAvailabilityResponse } from '$lib/types';
   import { encryptionService } from '$lib/services/encryption';
+  import Alert from '$lib/components/Alert.svelte';
 
   type Product = {
     product_id: number;
@@ -50,6 +51,9 @@
   let showSizeModal = false;
   let selectedProduct: GroupedProduct | null = null;
   let showMobileCart = false;
+  let showAlert = false;
+  let alertMessage = '';
+  let alertType: 'success' | 'error' | 'warning' = 'success';
 
   userStore.subscribe(user => {
     userId = user.userId;
@@ -179,34 +183,49 @@
       );
       
       if (!result.is_available || newQuantity > result.max_quantity) {
-        alert(`Cannot add more of this item: Maximum available is ${result.max_quantity}`);
+        showNotification(`Cannot add more of this item: Maximum available is ${result.max_quantity}`, 'error');
         return;
       }
       
       if (existingItem) {
         const updated = await updateCartQuantity(product.product_id, newQuantity);
-        if (!updated) return;
+        if (!updated) {
+          showNotification('Failed to update cart quantity', 'error');
+          return;
+        }
+        showNotification(`Updated ${product.name} quantity in cart`, 'success');
       } else {
-        cartItems = [
-          ...cartItems,
-          {
-            product_id: product.product_id,
-            id: product.product_id,
-            name: product.name,
-            price: product.price,
-            quantity: 1,
-            image: product.image ? `https://formalytics.me/uploads/${product.image}` : '/images/placeholder.jpg',
-            category: product.category
-          },
-        ];
+        const addResult = await ApiService.post<{status: boolean; message: string}>('add-to-cart', {
+          product_id: product.product_id,
+          user_id: userId,
+          quantity: 1
+        });
 
-        if (browser) {
-          localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+        if (addResult.status) {
+          cartItems = [
+            ...cartItems,
+            {
+              product_id: product.product_id,
+              id: product.product_id,
+              name: product.name,
+              price: product.price,
+              quantity: 1,
+              image: product.image ? `https://formalytics.me/uploads/${product.image}` : '/images/placeholder.jpg',
+              category: product.category
+            },
+          ];
+
+          if (browser) {
+            localStorage.setItem(`cart_${$userStore.userId}`, JSON.stringify(cartItems));
+          }
+          showNotification(`Added ${product.name} to cart`, 'success');
+        } else {
+          showNotification(addResult.message || 'Failed to add item to cart', 'error');
         }
       }
     } catch (error) {
       console.error('Error checking availability:', error);
-      alert('Unable to add item to cart');
+      showNotification('Unable to add item to cart', 'error');
     }
   }
 
@@ -359,9 +378,33 @@
   $: if (products.length > 0) {
     checkBatchAvailability(products);
   }
+
+  // Add these helper functions
+  function showLoading() {
+    // Implement loading indicator
+    return null; // Return reference to loading indicator
+  }
+
+  function hideLoading(loadingToast: any) {
+    // Remove loading indicator
+  }
+
+  function showNotification(message: string, type: 'success' | 'error' | 'warning' = 'success') {
+    alertMessage = message;
+    alertType = type;
+    showAlert = true;
+    setTimeout(() => {
+      showAlert = false;
+    }, 3000); // Hide after 3 seconds
+  }
 </script>
 
 <Header {y} {innerHeight} />
+{#if showAlert}
+  <div class="alert-container">
+    <Alert type={alertType} message={alertMessage} />
+  </div>
+{/if}
 <div class="container">
   <div class="content">
     <SideNav 
@@ -1243,6 +1286,22 @@
     .grid {
       margin: 0;
       padding: 0;
+    }
+  }
+
+  .alert-container {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 90%;
+    max-width: 500px;
+  }
+
+  @media (max-width: 768px) {
+    .alert-container {
+      top: 4rem;
     }
   }
 </style>

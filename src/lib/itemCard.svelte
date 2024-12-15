@@ -7,6 +7,9 @@
   };
   export let onAddToCart: () => void;
 
+  let isClickable = true;
+  const COOLDOWN_MS = 500; // 500ms cooldown between clicks
+
   $: isAvailable = $productAvailability[product.product_id] ?? false;
   
   // Function to get correct image URL
@@ -16,14 +19,21 @@
   }
 
   async function handleAddToCart() {
-    if (!isAvailable) {
+    if (!isAvailable || !isClickable) {
       return;
     }
-    onAddToCart();
+
+    isClickable = false;
+    await onAddToCart();
+    
+    // Reset clickable after cooldown
+    setTimeout(() => {
+      isClickable = true;
+    }, COOLDOWN_MS);
   }
 </script>
 
-<div class="item-card {!isAvailable ? 'unavailable' : ''}" 
+<div class="item-card {!isAvailable ? 'unavailable' : ''} {!isClickable ? 'processing' : ''}" 
      on:click={handleAddToCart} 
      role="button" 
      tabindex="0">
@@ -99,6 +109,11 @@
     font-weight: bold;
     text-transform: uppercase;
     z-index: 2;
+  }
+
+  .processing {
+    pointer-events: none;
+    opacity: 0.7;
   }
 
   /* Mobile styles */
