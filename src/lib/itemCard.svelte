@@ -77,6 +77,8 @@
     aspect-ratio: 1;
     overflow: hidden;
     margin-bottom: 0.5rem;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
   }
 
   .image-container img {
@@ -84,6 +86,10 @@
     height: 100%;
     object-fit: cover;
     object-position: center;
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    -webkit-transition: transform 0.3s ease;
+    transition: transform 0.3s ease;
   }
 
   .item-card:hover {
@@ -121,20 +127,46 @@
     .item-card {
       padding: 0.5rem;
       border-radius: 12px;
+      width: 150px; /* Standard width for mobile */
+      height: 231.88px; /* Fixed height as requested */
+      -webkit-box-sizing: border-box;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
     
     .image-container {
+      width: 140px; /* Fixed width for image container */
+      height: 140px; /* Fixed height to maintain aspect ratio */
+      -webkit-box-sizing: border-box;
+      box-sizing: border-box;
       margin-bottom: 0.25rem;
+    }
+    
+    .item-details {
+      height: 76.88px; /* Remaining height for details */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 0.25rem 0;
     }
     
     .item-details h3 {
       font-size: 0.875rem;
-      margin-bottom: 0.25rem;
+      margin: 0;
+      line-height: 1.2;
+      /* Ensure text doesn't overflow */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     
     .item-details p {
       font-size: 0.875rem;
       font-weight: 600;
+      margin: 0;
     }
     
     .unavailable-badge {
