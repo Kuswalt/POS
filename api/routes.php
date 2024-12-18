@@ -940,6 +940,29 @@ try {
                 case 'delete-all-stocks':
                     echo json_encode($delete->deleteAllStocks());
                     break;
+                case 'delete-staff-account':
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->deleteStaffAccount($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error deleting account: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
                 default:
                     echo json_encode(["error" => "This is forbidden"]);
                     http_response_code(403);

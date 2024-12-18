@@ -215,6 +215,56 @@
             }
         }
     }
+
+    let showItemsModal = false;
+    let activeTab: 'used' | 'deleted' = 'used';
+    let usedIngredients: any[] = [];
+    let deletedItems: any[] = [];
+
+    async function deleteAllUnusedStocks() {
+        if (!confirm('Are you sure you want to delete all unused items? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const result = await ApiService.delete<{
+                status: boolean;
+                message: string;
+                usedIngredients?: any[];
+                deletedItems?: any[];
+            }>('delete-all-stocks', {});
+
+            if (result.deletedItems) {
+                deletedItems = result.deletedItems;
+                activeTab = 'deleted';
+                showItemsModal = true;
+            }
+
+            if (result.status) {
+                showAlert = true;
+                alertType = 'success';
+                alertMessage = result.message;
+            } else {
+                if (result.usedIngredients && result.usedIngredients.length > 0) {
+                    usedIngredients = result.usedIngredients;
+                    activeTab = 'used';
+                    showItemsModal = true;
+                }
+                showAlert = true;
+                alertType = 'warning';
+                alertMessage = result.message;
+            }
+            
+            await fetchItems(); // Refresh the table
+            setTimeout(() => showAlert = false, 3000);
+        } catch (error) {
+            console.error('Error deleting stocks:', error);
+            showAlert = true;
+            alertType = 'error';
+            alertMessage = 'Failed to delete stocks';
+            setTimeout(() => showAlert = false, 3000);
+        }
+    }
 </script>
 
 {#if showError}
@@ -289,16 +339,12 @@
             <!-- Inventory Table -->
             <div class="table-section">
                 <div class="table-header">
-                    <h3 class="text-lg font-semibold">Current Stock</h3>
+                    <h2 class="text-2xl font-bold">Current Stock</h2>
                     <button 
                         class="delete-all-button"
-                        on:click={async () => {
-                            if (confirm('Are you sure you want to delete ALL stocks? This cannot be undone.')) {
-                                // ... existing delete code ...
-                            }
-                        }}
+                        on:click={deleteAllUnusedStocks}
                     >
-                        Delete All Stocks
+                        Delete All Unused Items
                     </button>
                 </div>
 
@@ -441,6 +487,86 @@
     </div>
 {/if}
 
+{#if showItemsModal}
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <div class="tabs">
+                <button 
+                    class="tab-button {activeTab === 'used' ? 'active' : ''}"
+                    on:click={() => activeTab = 'used'}
+                >
+                    Items In Use
+                </button>
+                <button 
+                    class="tab-button {activeTab === 'deleted' ? 'active' : ''}"
+                    on:click={() => activeTab = 'deleted'}
+                >
+                    Deleted Items
+                </button>
+            </div>
+
+            {#if activeTab === 'used'}
+                <div class="tab-content">
+                    <h3 class="text-xl font-bold mb-4">Items Currently In Use</h3>
+                    <p class="mb-4">The following items cannot be deleted because they are being used in products:</p>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr>
+                                    <th class="text-left py-2">Item Name</th>
+                                    <th class="text-left py-2">Used In Product</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each usedIngredients as item}
+                                    <tr class="border-t">
+                                        <td class="py-2">{item.item_name}</td>
+                                        <td class="py-2">{item.product_name}</td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {:else}
+                <div class="tab-content">
+                    <h3 class="text-xl font-bold mb-4">Deleted Items</h3>
+                    <p class="mb-4">The following items have been deleted:</p>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr>
+                                    <th class="text-left py-2">Item Name</th>
+                                    <th class="text-left py-2">Quantity</th>
+                                    <th class="text-left py-2">Unit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each deletedItems as item}
+                                    <tr class="border-t">
+                                        <td class="py-2">{item.item_name}</td>
+                                        <td class="py-2">{item.stock_quantity}</td>
+                                        <td class="py-2">{item.unit_of_measure}</td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {/if}
+            
+            <button 
+                class="mt-4 w-full bg-[#d4a373] text-white py-2 px-4 rounded hover:bg-[#c49363]"
+                on:click={() => showItemsModal = false}
+            >
+                Close
+            </button>
+        </div>
+    </div>
+{/if}
+
 <style>
     .layout {
         width: 100%;
@@ -512,10 +638,15 @@
     }
 
     .delete-all-button {
-        background: #ef4444;
+        background-color: #ef4444;
         color: white;
         padding: 0.5rem 1rem;
         border-radius: 0.5rem;
+        transition: background-color 0.2s;
+    }
+
+    .delete-all-button:hover {
+        background-color: #dc2626;
     }
 
     /* Mobile styles */
@@ -667,6 +798,51 @@
             width: 100%;
             text-align: center;
             padding: 0.75rem;
+        }
+    }
+
+    .alert-container {
+        position: fixed;
+        top: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        width: 90%;
+        max-width: 600px;
+    }
+
+    .tabs {
+        display: flex;
+        border-bottom: 2px solid #e5e7eb;
+        margin-bottom: 1rem;
+    }
+
+    .tab-button {
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        color: #6b7280;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+
+    .tab-button:hover {
+        color: #d4a373;
+    }
+
+    .tab-button.active {
+        color: #d4a373;
+        border-bottom-color: #d4a373;
+    }
+
+    .tab-content {
+        padding: 1rem 0;
+    }
+
+    @media (max-width: 640px) {
+        .tab-button {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
         }
     }
 </style>

@@ -367,14 +367,40 @@ class Delete {
             $usedIngredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             if (count($usedIngredients) > 0) {
+                // Get IDs of used ingredients
+                $usedIds = array_map(function($item) {
+                    return $item['inventory_id'];
+                }, $usedIngredients);
+                
+                // Get items that will be deleted
+                $placeholders = str_repeat('?,', count($usedIds) - 1) . '?';
+                $selectSql = "SELECT * FROM inventory WHERE inventory_id NOT IN ($placeholders)";
+                $stmt = $conn->prepare($selectSql);
+                $stmt->execute($usedIds);
+                $deletedItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Delete unused ingredients
+                $deleteSql = "DELETE FROM inventory WHERE inventory_id NOT IN ($placeholders)";
+                $stmt = $conn->prepare($deleteSql);
+                $stmt->execute($usedIds);
+                
+                $deletedCount = $stmt->rowCount();
+                
+                $conn->commit();
                 return [
                     "status" => false,
-                    "message" => "Cannot delete all stocks - some ingredients are being used in products",
-                    "usedIngredients" => $usedIngredients
+                    "message" => "Some items could not be deleted because they are being used in products. Deleted $deletedCount unused items.",
+                    "usedIngredients" => $usedIngredients,
+                    "deletedItems" => $deletedItems
                 ];
             }
             
-            // If no ingredients are being used, proceed with deletion
+            // If no ingredients are being used, get all items before deletion
+            $stmt = $conn->prepare("SELECT * FROM inventory");
+            $stmt->execute();
+            $deletedItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Delete all
             $sql = "DELETE FROM inventory";
             $stmt = $conn->prepare($sql);
             $stmt->execute();
@@ -382,7 +408,8 @@ class Delete {
             $conn->commit();
             return [
                 "status" => true,
-                "message" => "All stocks deleted successfully"
+                "message" => "All stocks deleted successfully",
+                "deletedItems" => $deletedItems
             ];
             
         } catch (PDOException $e) {
@@ -390,6 +417,63 @@ class Delete {
             return [
                 "status" => false,
                 "message" => "Failed to delete stocks: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteStaffAccount($data) {
+        global $conn;
+        
+        if (!isset($data['user_id'])) {
+            return [
+                "status" => false,
+                "message" => "User ID is required"
+            ];
+        }
+
+        try {
+            // First check if user is admin
+            $checkSql = "SELECT role FROM user_acc WHERE User_id = :user_id";
+            $stmt = $conn->prepare($checkSql);
+            $stmt->bindParam(':user_id', $data['user_id']);
+            $stmt->execute();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                return [
+                    "status" => false,
+                    "message" => "User not found"
+                ];
+            }
+
+            if ($user['role'] === 1) {
+                return [
+                    "status" => false,
+                    "message" => "Cannot delete admin accounts"
+                ];
+            }
+
+            // Delete the user
+            $sql = "DELETE FROM user_acc WHERE User_id = :user_id AND role != 1";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':user_id', $data['user_id']);
+            $stmt->execute();
+
+            if ($stmt->rowCount() === 0) {
+                return [
+                    "status" => false,
+                    "message" => "Failed to delete account"
+                ];
+            }
+
+            return [
+                "status" => true,
+                "message" => "Account deleted successfully"
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Database error: " . $e->getMessage()
             ];
         }
     }

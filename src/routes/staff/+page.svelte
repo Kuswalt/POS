@@ -89,6 +89,36 @@
         return false;
     }
 
+    async function deleteStaffAccount(userId: number) {
+        if (!confirm('Are you sure you want to delete this account?')) {
+            return;
+        }
+
+        try {
+            const result = await ApiService.delete('delete-staff-account', {
+                user_id: userId
+            });
+
+            if (result.status) {
+                showAlert = true;
+                alertType = 'success';
+                alertMessage = 'Account deleted successfully';
+                await fetchStaff(); // Refresh the staff list
+            } else {
+                showAlert = true;
+                alertType = 'error';
+                alertMessage = result.message || 'Failed to delete account';
+            }
+            setTimeout(() => showAlert = false, 3000);
+        } catch (error) {
+            console.error('Error deleting account:', error);
+            showAlert = true;
+            alertType = 'error';
+            alertMessage = 'Failed to delete account';
+            setTimeout(() => showAlert = false, 3000);
+        }
+    }
+
     onMount(async () => {
         isLoading = true;
         const authorized = await checkAuth();
@@ -124,6 +154,7 @@
                             <th>Username</th>
                             <th>Current Role</th>
                             <th>Change Role</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -158,6 +189,16 @@
                                         <option value={0}>Restricted-access</option>
                                         <option value={2}>No-access</option>
                                     </select>
+                                </td>
+                                <td data-label="Actions">
+                                    {#if member.role !== 1 && !isCurrentUser(member.User_id)}
+                                        <button
+                                            class="px-3 py-1 text-sm font-semibold text-white bg-red-500 rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                            on:click={() => deleteStaffAccount(member.User_id)}
+                                        >
+                                            Delete
+                                        </button>
+                                    {/if}
                                 </td>
                             </tr>
                         {/each}
