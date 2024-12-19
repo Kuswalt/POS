@@ -33,15 +33,20 @@
 
   // Filter function
   $: {
-    filteredSalesData = salesData.filter(sale => {
-      const saleDate = new Date(sale.order_date);
-      const matchesSearch = sale.product_name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesYear = !selectedYear || saleDate.getFullYear() === parseInt(selectedYear);
-      const matchesMonth = !selectedMonth || saleDate.getMonth() + 1 === parseInt(selectedMonth);
-      const matchesDay = !selectedDay || saleDate.getDate() === parseInt(selectedDay);
-      
-      return matchesSearch && matchesYear && matchesMonth && matchesDay;
-    });
+    if ($userStore.role === 0) {
+      // If role is 0 (staff), only show their own transactions
+      filteredSalesData = salesData.filter(sale => 
+        sale.username === $userStore.username
+      );
+    } else {
+      // If role is 1 (admin), show all transactions
+      filteredSalesData = salesData.filter(sale => 
+        sale.product_name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        (!selectedYear || new Date(sale.order_date).getFullYear() === parseInt(selectedYear)) &&
+        (!selectedMonth || new Date(sale.order_date).getMonth() + 1 === parseInt(selectedMonth)) &&
+        (!selectedDay || new Date(sale.order_date).getDate() === parseInt(selectedDay))
+      );
+    }
   }
 
   // Reset filters
@@ -820,15 +825,29 @@
     }
   }
 
+  // Update the onMount function to handle the filtered data for charts
   onMount(async () => {
     try {
       const result = await ApiService.get<SalesData>('get-sales-data');
       if (result.status) {
         salesData = result.data;
+        
+        // Filter data based on user role
+        if ($userStore.role === 0) {
+          salesData = salesData.filter(sale => 
+            sale.username === $userStore.username
+          );
+        }
+
+        // Update filtered data and charts
+        filteredSalesData = salesData;
         chartData = result.chartData;
         dailyChartData = result.dailyChartData;
-        filteredSalesData = salesData;
-        await initializeCharts();
+
+        // Only initialize charts for admin users
+        if ($userStore.role === 1) {
+          await initializeCharts();
+        }
       } else {
         console.error('Failed to fetch sales data:', result.message);
       }
@@ -836,6 +855,12 @@
       console.error('Error fetching sales data:', error);
     }
   });
+
+  // Update the displayedData computed property
+  $: displayedData = filteredSalesData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 </script>
 
 <Header {y} {innerWidth} {innerHeight} />
@@ -844,8 +869,8 @@
   <div class="sales-container">
     <h2 class="text-2xl font-bold mb-4">Sales History</h2>
     
-    <!-- Only show charts and action buttons for admin -->
-    {#if isAdmin}
+    <!-- Only show charts for admin users -->
+    {#if $userStore.role === 1}
       <div class="charts-container">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="chart-wrapper">
@@ -886,57 +911,42 @@
       </div>
     {/if}
 
-    <!-- Filters and table are shown to all users -->
+    <!-- Show appropriate filters -->
     <div class="filters">
-      <!-- Search Bar -->
-      <div class="flex items-center space-x-4">
-        <input
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Search by product name..."
-          class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-      </div>
+      <input
+        type="text"
+        placeholder="Search by product name..."
+        bind:value={searchQuery}
+        class="search-input"
+      />
       
-      <!-- Date Filters -->
-      <div class="filter-buttons">
-        <select
-          bind:value={selectedYear}
-          class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        >
+      <!-- Only show date filters for admin users -->
+      {#if $userStore.role === 1}
+        <select bind:value={selectedYear} class="filter-select">
           <option value="">All Years</option>
           {#each years as year}
             <option value={year}>{year}</option>
           {/each}
         </select>
 
-        <select
-          bind:value={selectedMonth}
-          class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        >
+        <select bind:value={selectedMonth} class="filter-select">
           <option value="">All Months</option>
           {#each months as month}
             <option value={month.value}>{month.label}</option>
           {/each}
         </select>
 
-        <select
-          bind:value={selectedDay}
-          class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        >
+        <select bind:value={selectedDay} class="filter-select">
           <option value="">All Days</option>
           {#each days as day}
             <option value={day}>{day}</option>
           {/each}
         </select>
 
-        <button
-          on:click={resetFilters}
-          class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-        >
+        <button on:click={resetFilters} class="reset-button">
           Reset Filters
         </button>
-      </div>
+      {/if}
     </div>
 
     <!-- Table -->
