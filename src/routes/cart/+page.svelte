@@ -37,6 +37,9 @@
     total_amount: number;
     amount_paid: number;
     change: number;
+    discount_applied: boolean;
+    discount_type: string;
+    original_amount: number;
   }
 
   // Add new state variables
@@ -106,54 +109,62 @@
     }
 
     try {
-      // First save customer info
+      // First save customer info with the discounted total if applicable
       const customerResult = await ApiService.post('add-customer', {
         Name: customerName,
         total_amount: amountPaid
       });
 
       if (customerResult.status) {
-        // Create order
+        // Create order with the discounted total
         const orderResult = await ApiService.post('create-order', {
           customer_id: customerResult.customer_id,
-          total_amount: total,
+          total_amount: discountedTotal, // Use discounted total here
           user_id: userId,
           payment_status: 'paid',
           order_items: cartItems.map(item => ({
             product_id: item.id,
             quantity: item.quantity,
             price: item.price
-          }))
+          })),
+          discount_applied: applyDiscount,
+          discount_type: discountReason
         });
 
         if (orderResult.status) {
-          // Record sale
+          // Record sale with discounted total
           const saleResult = await ApiService.post('add-sale', {
             order_id: orderResult.order_id,
-            total_sales: total,
+            total_sales: discountedTotal, // Use discounted total here
             user_id: userId
           });
 
           if (saleResult.status) {
-            // Generate receipt
+            // Generate receipt with discount information
             const receiptResult = await ApiService.post('add-receipt', {
               order_id: orderResult.order_id,
-              total_amount: total
+              total_amount: discountedTotal, // Use discounted total here
+              discount_applied: applyDiscount,
+              discount_type: discountReason,
+              original_amount: total
             });
 
             if (receiptResult.status) {
               // Clear cart
               await ApiService.delete('clear-cart', { user_id: userId });
               
-              // Show receipt modal
+              // Show receipt modal with discount information
               receiptData = {
                 receipt_id: receiptResult.receipt_id,
                 customer_name: customerName,
                 date: new Date().toLocaleString(),
                 items: cartItems,
-                total_amount: total,
+                total_amount: discountedTotal, // Use discounted total here
                 amount_paid: amountPaid,
-                change: change
+                change: change,
+                discount_applied: applyDiscount,
+                discount_type: discountReason,
+                original_amount: total
               };
               
               showReceiptModal = true;
@@ -329,6 +340,35 @@
       console.error('Error checking quantity availability:', error);
     }
   }
+
+  let showConfirmationModal = false;
+  let applyDiscount = false;
+  let discountReason = ''; // 'senior' or 'pwd'
+  
+  // Calculate discounted total
+  $: discountedTotal = applyDiscount ? total * 0.8 : total; // 20% discount
+  $: change = amountPaid - discountedTotal;
+
+  function handleCheckout() {
+    if (!customerName.trim() || !amountPaid || amountPaid < discountedTotal) {
+      showAlertMessage('Please fill in all required fields correctly');
+      return;
+    }
+    showConfirmationModal = true;
+  }
+
+  function confirmTransaction() {
+    showConfirmationModal = false;
+    saveCustomer();
+  }
+
+  // Add validation function
+  function isConfirmationValid(): boolean {
+    if (applyDiscount && !discountReason) {
+      return false;
+    }
+    return true;
+  }
 </script>
 
 <div class="cart-container">
@@ -410,11 +450,11 @@
     <h3>Total: ₱{total.toFixed(2)}</h3>
     <div class="customer-actions">
       <button 
-        class="save-customer-btn"
-        on:click={saveCustomer}
-        disabled={!customerName.trim() || !amountPaid || amountPaid < total}
+        class="save-customer-btn" 
+        on:click={handleCheckout}
+        disabled={cartItems.length === 0}
       >
-        Proceed To Checkout
+        {cartItems.length === 0 ? 'Cart is Empty' : 'Proceed to Checkout'}
       </button>
     </div>
   </div>
@@ -452,6 +492,10 @@
         </div>
 
         <div class="receipt-summary">
+          {#if receiptData.discount_applied}
+            <p><strong>Original Amount:</strong> ₱{receiptData.original_amount.toFixed(2)}</p>
+            <p><strong>Discount ({receiptData.discount_type}):</strong> -₱{(receiptData.original_amount * 0.2).toFixed(2)}</p>
+          {/if}
           <p><strong>Total Amount:</strong> ₱{receiptData.total_amount.toFixed(2)}</p>
           <p><strong>Amount Paid:</strong> ₱{receiptData.amount_paid.toFixed(2)}</p>
           <p><strong>Change:</strong> ₱{receiptData.change.toFixed(2)}</p>
@@ -459,6 +503,119 @@
 
         <button class="close-btn" on:click={closeReceiptModal}>Close</button>
         <button class="print-btn" on:click={printReceipt}>Print</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showConfirmationModal}
+  <div class="modal-overlay">
+    <div class="modal-content confirmation-modal">
+      <h2 class="text-xl font-bold mb-4">Confirm Transaction</h2>
+      
+      <div class="confirmation-details">
+        <div class="customer-info mb-4">
+          <h3 class="font-semibold">Customer Information</h3>
+          <p>Name: {customerName}</p>
+        </div>
+
+        <div class="order-items mb-4">
+          <h3 class="font-semibold">Ordered Items</h3>
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th class="text-left">Item</th>
+                <th class="text-center">Qty</th>
+                <th class="text-right">Price</th>
+                <th class="text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each cartItems as item}
+                <tr>
+                  <td>{item.name}</td>
+                  <td class="text-center">{item.quantity}</td>
+                  <td class="text-right">₱{item.price}</td>
+                  <td class="text-right">₱{(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="discount-section mb-4">
+          <label class="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              bind:checked={applyDiscount}
+              class="form-checkbox"
+            >
+            <span>Apply 20% Discount</span>
+          </label>
+          
+          {#if applyDiscount}
+            <div class="mt-2">
+              <select 
+                bind:value={discountReason}
+                class="input-field"
+                required
+              >
+                <option value="">Select Discount Type</option>
+                <option value="senior">Senior Citizen</option>
+                <option value="pwd">PWD</option>
+              </select>
+            </div>
+          {/if}
+        </div>
+
+        <div class="transaction-summary">
+          <div class="flex justify-between mb-2">
+            <span>Subtotal:</span>
+            <span>₱{total.toFixed(2)}</span>
+          </div>
+          
+          {#if applyDiscount}
+            <div class="flex justify-between mb-2 text-green-600">
+              <span>Discount (20%):</span>
+              <span>-₱{(total * 0.2).toFixed(2)}</span>
+            </div>
+          {/if}
+          
+          <div class="flex justify-between mb-2 font-bold">
+            <span>Total Amount:</span>
+            <span>₱{discountedTotal.toFixed(2)}</span>
+          </div>
+          
+          <div class="flex justify-between mb-2">
+            <span>Amount Paid:</span>
+            <span>₱{amountPaid.toFixed(2)}</span>
+          </div>
+          
+          <div class="flex justify-between font-bold">
+            <span>Change:</span>
+            <span>₱{change.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="modal-actions mt-6 flex gap-4">
+          <button 
+            class="flex-1 py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600"
+            on:click={() => showConfirmationModal = false}
+          >
+            Cancel
+          </button>
+          <button 
+            class="flex-1 py-2 px-4 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            on:click={confirmTransaction}
+            disabled={applyDiscount && !discountReason}
+          >
+            {#if applyDiscount && !discountReason}
+              Select Discount Type
+            {:else}
+              Confirm
+            {/if}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -599,15 +756,17 @@
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
+    transition: all 0.2s ease;
   }
 
-  .save-customer-btn:hover {
+  .save-customer-btn:hover:not(:disabled) {
     background: #374151;
   }
 
   .save-customer-btn:disabled {
     background: #9CA3AF;
     cursor: not-allowed;
+    opacity: 0.7;
   }
 
   .modal-overlay {
@@ -730,5 +889,51 @@
       margin: 0;
       border-radius: 0;
     }
+  }
+
+  .confirmation-modal {
+    max-width: 600px;
+  }
+
+  .confirmation-details {
+    background: #f9fafb;
+    padding: 1rem;
+    border-radius: 0.5rem;
+  }
+
+  .transaction-summary {
+    background: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .form-checkbox {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    border: 1px solid #d1d5db;
+  }
+
+  /* Make the modal scrollable on mobile */
+  @media (max-width: 768px) {
+    .confirmation-modal {
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-content {
+      margin: 1rem;
+      padding: 1rem;
+    }
+  }
+
+  .modal-actions button:disabled {
+    background-color: #9CA3AF;
+    cursor: not-allowed;
+  }
+
+  .modal-actions button:disabled:hover {
+    background-color: #9CA3AF;
   }
 </style>

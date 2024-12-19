@@ -700,6 +700,126 @@
     }
   }
 
+  // Pagination settings
+  let itemsPerPage = 25;
+  let currentPage = 1;
+  let totalPages = 0;
+  let displayedData: any[] = [];
+
+  // Calculate total pages and update displayed data whenever filtered data changes
+  $: {
+    totalPages = Math.ceil(filteredSalesData.length / itemsPerPage);
+    displayedData = getPageData(currentPage);
+  }
+
+  // Function to get data for a specific page
+  function getPageData(page: number): any[] {
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, filteredSalesData.length);
+    return filteredSalesData.slice(startIndex, endIndex);
+  }
+
+  // Function to handle page changes
+  function changePage(newPage: number) {
+    if (newPage >= 1 && newPage <= totalPages) {
+      currentPage = newPage;
+      displayedData = getPageData(currentPage);
+    }
+  }
+
+  // Reset to page 1 when filters change
+  $: {
+    searchQuery;
+    selectedDay;
+    selectedMonth;
+    selectedYear;
+    currentPage = 1;
+  }
+
+  // Function to get page numbers to display
+  function getPageNumbers(): (number | string)[] {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    // Always show first page
+    pages.push(1);
+    
+    if (currentPage > 3) {
+      pages.push('...');
+    }
+
+    // Show pages around current page
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i);
+    }
+
+    if (currentPage < totalPages - 2) {
+      pages.push('...');
+    }
+
+    // Always show last page if there is more than one page
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+
+    return pages;
+  }
+
+  // Add helper function to check if user is admin
+  $: isAdmin = ($userStore.role ?? 0) === 1;
+
+  // Add these variables
+  let showVerificationModal = false;
+  let saleToDelete: number | null = null;
+  let adminCredentials = {
+    username: '',
+    password: ''
+  };
+
+  // Add these functions
+  function showAdminVerification(orderId: number) {
+    saleToDelete = orderId;
+    showVerificationModal = true;
+  }
+
+  function closeVerificationModal() {
+    showVerificationModal = false;
+    saleToDelete = null;
+    adminCredentials = {
+      username: '',
+      password: ''
+    };
+  }
+
+  async function verifyAdminAndDelete(event: Event) {
+    event.preventDefault();
+    
+    try {
+      // Verify admin credentials
+      const verifyResult = await ApiService.post<{status: boolean; role?: number}>('verify-admin', {
+        username: adminCredentials.username,
+        password: adminCredentials.password
+      });
+
+      if (verifyResult.status && verifyResult.role === 1) {
+        // If verified, proceed with deletion
+        if (saleToDelete) {
+          await archiveSale(saleToDelete);
+        }
+        closeVerificationModal();
+      } else {
+        alert('Invalid admin credentials');
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      alert('Failed to verify admin credentials');
+    }
+  }
+
   onMount(async () => {
     try {
       const result = await ApiService.get<SalesData>('get-sales-data');
@@ -718,29 +838,55 @@
   });
 </script>
 
-<Header {y} {innerHeight} />
+<Header {y} {innerWidth} {innerHeight} />
 
 <div class="content">
   <div class="sales-container">
     <h2 class="text-2xl font-bold mb-4">Sales History</h2>
     
-    <!-- Charts Section -->
-    <div class="charts-container grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
-        <div id="salesPerPeriodChart"></div>
+    <!-- Only show charts and action buttons for admin -->
+    {#if isAdmin}
+      <div class="charts-container">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="chart-wrapper">
+            <div id="salesPerPeriodChart"></div>
+          </div>
+          <div class="chart-wrapper">
+            <div id="salesPerProductChart"></div>
+          </div>
+          <div class="chart-wrapper">
+            <div id="salesPerDayChart"></div>
+          </div>
+          <div class="chart-wrapper">
+            <div id="salesPerProductPerDayChart"></div>
+          </div>
+        </div>
       </div>
-      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
-        <div id="salesPerProductChart"></div>
-      </div>
-      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
-        <div id="salesPerDayChart"></div>
-      </div>
-      <div class="chart-wrapper bg-white p-4 rounded-lg shadow">
-        <div id="salesPerProductPerDayChart"></div>
-      </div>
-    </div>
 
-    <!-- Filter Section -->
+      <!-- Admin-only action buttons -->
+      <div class="filter-buttons">
+        <button
+          on:click={exportToExcel}
+          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Export to Excel
+        </button>
+        <button
+          on:click={printCharts}
+          class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Print PDF
+        </button>
+        <button
+          on:click={deleteAllOrders}
+          class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+        >
+          Delete All Orders
+        </button>
+      </div>
+    {/if}
+
+    <!-- Filters and table are shown to all users -->
     <div class="filters">
       <!-- Search Bar -->
       <div class="flex items-center space-x-4">
@@ -790,44 +936,51 @@
         >
           Reset Filters
         </button>
-
-        <button
-          on:click={exportToExcel}
-          class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
-        >
-          Export to Excel
-        </button>
-
-        <button
-          on:click={printCharts}
-          class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-        >
-          Print Charts
-        </button>
-
-        <button
-          on:click={deleteAllOrders}
-          class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-        >
-          Delete Filtered Orders
-        </button>
-
-        <button
-          on:click={archiveFilteredSales}
-          class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"
-        >
-          Archive Filtered Sales
-        </button>
       </div>
-    </div>
-
-    <!-- Results Count -->
-    <div class="mb-4 text-gray-600">
-      Showing {filteredSalesData.length} of {salesData.length} records
     </div>
 
     <!-- Table -->
     <div class="overflow-x-auto">
+      <!-- Moved Pagination controls to top -->
+      {#if totalPages > 0}
+        <div class="pagination-controls mb-4">
+          <div class="pagination-info">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesData.length)} of {filteredSalesData.length} entries
+          </div>
+          
+          <div class="pagination-buttons">
+            <button 
+              class="pagination-button"
+              disabled={currentPage === 1}
+              on:click={() => changePage(currentPage - 1)}
+            >
+              Previous
+            </button>
+
+            {#each getPageNumbers() as pageNum}
+              {#if typeof pageNum === 'string'}
+                <span class="pagination-ellipsis">{pageNum}</span>
+              {:else}
+                <button 
+                  class="pagination-button {pageNum === currentPage ? 'active' : ''}"
+                  on:click={() => changePage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              {/if}
+            {/each}
+
+            <button 
+              class="pagination-button"
+              disabled={currentPage === totalPages}
+              on:click={() => changePage(currentPage + 1)}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      {/if}
+
       <table class="responsive-table">
         <thead>
           <tr>
@@ -842,7 +995,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each filteredSalesData as sale}
+          {#each displayedData as sale}
             <tr>
               <td data-label="Staff">{sale.username}</td>
               <td data-label="Product">{sale.product_name}</td>
@@ -851,19 +1004,25 @@
               <td data-label="Amount Paid">₱{parseFloat(sale.amount_paid).toFixed(2)}</td>
               <td data-label="Total">₱{parseFloat(sale.total_amount).toFixed(2)}</td>
               <td data-label="Date">{new Date(sale.order_date).toLocaleDateString()}</td>
+              <!-- Show delete action for all users -->
               <td class="actions" data-label="Actions">
-                <button
-                  on:click={() => deleteOrder(sale.order_id)}
-                  class="text-red-600 hover:text-red-900 font-medium"
-                >
-                  Delete
-                </button>
-                <button
-                  on:click={() => archiveSale(sale.order_id)}
-                  class="text-blue-600 hover:text-blue-900 font-medium"
-                >
-                  Archive
-                </button>
+                {#if $userStore.role === 1}
+                  <!-- Admin delete button -->
+                  <button
+                    on:click={() => archiveSale(sale.order_id)}
+                    class="text-blue-600 hover:text-blue-900 font-medium"
+                  >
+                    Delete
+                  </button>
+                {:else}
+                  <!-- Staff delete button with admin verification -->
+                  <button
+                    on:click={() => showAdminVerification(sale.order_id)}
+                    class="text-blue-600 hover:text-blue-900 font-medium"
+                  >
+                    Request Delete
+                  </button>
+                {/if}
               </td>
             </tr>
           {/each}
@@ -872,6 +1031,44 @@
     </div>
   </div>
 </div>
+
+<!-- Add this modal markup right before the closing </div> of the content div -->
+
+{#if showVerificationModal}
+  <div class="modal-overlay">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">Admin Verification Required</h2>
+      <form on:submit|preventDefault={verifyAdminAndDelete}>
+        <div class="form-group">
+          <label for="adminUsername">Admin Username</label>
+          <input
+            type="text"
+            id="adminUsername"
+            bind:value={adminCredentials.username}
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="adminPassword">Admin Password</label>
+          <input
+            type="password"
+            id="adminPassword"
+            bind:value={adminCredentials.password}
+            required
+          />
+        </div>
+        <div class="button-group">
+          <button type="button" class="btn-cancel" on:click={closeVerificationModal}>
+            Cancel
+          </button>
+          <button type="submit" class="btn-verify">
+            Verify & Delete
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
 
 <style>
   .content {
@@ -963,6 +1160,159 @@
   /* Add global font */
   :global(body) {
     font-family: 'DynaPuff', cursive;
+  }
+
+  .pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .pagination-info {
+    color: #6b7280;
+  }
+
+  .pagination-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .pagination-button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    background: white;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .pagination-button:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
+
+  .pagination-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .pagination-button.active {
+    background: #d4a373;
+    color: white;
+    border-color: #d4a373;
+  }
+
+  .pagination-ellipsis {
+    padding: 0.5rem;
+    color: #6b7280;
+  }
+
+  @media (max-width: 768px) {
+    .pagination-controls {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .pagination-buttons {
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+  }
+
+  /* Update/add these modal styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background: #faedcd;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+  }
+
+  .btn-verify {
+    background: #4CAF50;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+
+  .btn-verify:hover {
+    background: #45a049;
+  }
+
+  .btn-cancel {
+    background: #f44336;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+
+  .btn-cancel:hover {
+    background: #da190b;
+  }
+
+  /* Make sure buttons are clickable */
+  button {
+    cursor: pointer;
+  }
+
+  /* Ensure modal is above other content */
+  :global(body) {
+    position: relative;
   }
 </style>
 

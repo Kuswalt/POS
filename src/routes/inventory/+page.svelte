@@ -32,6 +32,69 @@
         item.item_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Add pagination variables
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let totalPages = 0;
+
+    // Calculate displayed items based on pagination
+    $: {
+        totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+        if (currentPage > totalPages) {
+            currentPage = totalPages || 1;
+        }
+    }
+
+    $: displayedItems = filteredItems.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    // Pagination controls
+    function changePage(page: number) {
+        currentPage = page;
+    }
+
+    // Helper function to generate page numbers
+    function getPageNumbers() {
+        const pages = [];
+        const maxVisiblePages = 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            // Show all pages if total pages is less than max visible
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            // Always show first page
+            pages.push(1);
+            
+            // Calculate start and end of visible pages
+            let start = Math.max(2, currentPage - 1);
+            let end = Math.min(totalPages - 1, currentPage + 1);
+            
+            // Add ellipsis after first page if needed
+            if (start > 2) {
+                pages.push('...');
+            }
+            
+            // Add visible pages
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            // Add ellipsis before last page if needed
+            if (end < totalPages - 1) {
+                pages.push('...');
+            }
+            
+            // Always show last page
+            pages.push(totalPages);
+        }
+        
+        return pages;
+    }
+
     async function fetchItems() {
         try {
             const result = await ApiService.get<InventoryItem[]>('get-items');
@@ -348,38 +411,78 @@
                     </button>
                 </div>
 
-                <table class="responsive-table">
-                    <thead>
-                        <tr>
-                            <th>Item Name</th>
-                            <th>Stock Quantity</th>
-                            <th>Unit</th>
-                            <th>Last Updated</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {#each filteredItems as item}
+                {#if filteredItems.length > 0}
+                    <div class="pagination-controls">
+                        <div class="pagination-info">
+                            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredItems.length)} of {filteredItems.length} entries
+                        </div>
+                        <div class="pagination-buttons">
+                            <button 
+                                class="pagination-button"
+                                disabled={currentPage === 1}
+                                on:click={() => changePage(currentPage - 1)}
+                            >
+                                Previous
+                            </button>
+
+                            {#each getPageNumbers() as pageNum}
+                                {#if typeof pageNum === 'string'}
+                                    <span class="pagination-ellipsis">{pageNum}</span>
+                                {:else}
+                                    <button 
+                                        class="pagination-button {pageNum === currentPage ? 'active' : ''}"
+                                        on:click={() => changePage(pageNum)}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                {/if}
+                            {/each}
+
+                            <button 
+                                class="pagination-button"
+                                disabled={currentPage === totalPages}
+                                on:click={() => changePage(currentPage + 1)}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+
+                    <table class="responsive-table">
+                        <thead>
                             <tr>
-                                <td data-label="Item Name">{item.item_name}</td>
-                                <td data-label="Stock Quantity">{item.stock_quantity}</td>
-                                <td data-label="Unit">{item.unit_of_measure}</td>
-                                <td data-label="Last Updated">{item.last_updated}</td>
-                                <td class="actions" data-label="Actions">
-                                    <button class="edit-btn" on:click={() => startEdit(item)}>
-                                        Edit
-                                    </button>
-                                    <button class="delete-btn" on:click={() => deleteItemStock(item.inventory_id)}>
-                                        Delete
-                                    </button>
-                                    <button class="used-in-btn" on:click={() => showProductsUsingIngredient(item)}>
-                                        Used In Products
-                                    </button>
-                                </td>
+                                <th>Item Name</th>
+                                <th>Stock Quantity</th>
+                                <th>Unit</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
                             </tr>
-                        {/each}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {#each displayedItems as item}
+                                <tr>
+                                    <td data-label="Item Name">{item.item_name}</td>
+                                    <td data-label="Stock Quantity">{item.stock_quantity}</td>
+                                    <td data-label="Unit">{item.unit_of_measure}</td>
+                                    <td data-label="Last Updated">{item.last_updated}</td>
+                                    <td class="actions" data-label="Actions">
+                                        <button class="edit-btn" on:click={() => startEdit(item)}>
+                                            Edit
+                                        </button>
+                                        <button class="delete-btn" on:click={() => deleteItemStock(item.inventory_id)}>
+                                            Delete
+                                        </button>
+                                        <button class="used-in-btn" on:click={() => showProductsUsingIngredient(item)}>
+                                            Used In Products
+                                        </button>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                {:else}
+                    <p class="text-center text-gray-500 my-4">No items found</p>
+                {/if}
             </div>
         </main>
     </div>
@@ -627,6 +730,7 @@
         background: #faedcd;
         border-radius: 0.5rem;
         padding: 1.5rem;
+        margin-top: 1.5rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
@@ -843,6 +947,76 @@
         .tab-button {
             padding: 0.5rem 1rem;
             font-size: 0.875rem;
+        }
+    }
+
+    /* Add these pagination styles */
+    .pagination-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: white;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .pagination-info {
+        color: #6b7280;
+    }
+
+    .pagination-buttons {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .pagination-button {
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        background: white;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .pagination-button:hover:not(:disabled) {
+        background: #f3f4f6;
+    }
+
+    .pagination-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-button.active {
+        background: #d4a373;
+        color: white;
+        border-color: #d4a373;
+    }
+
+    .pagination-ellipsis {
+        padding: 0.5rem;
+        color: #6b7280;
+    }
+
+    /* Add responsive styles for pagination */
+    @media (max-width: 768px) {
+        .pagination-controls {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .pagination-buttons {
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .pagination-info {
+            text-align: center;
         }
     }
 </style>

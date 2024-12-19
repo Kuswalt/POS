@@ -898,5 +898,41 @@ class Post {
         }
     }
 
+    public function verifyAdmin($data) {
+        global $conn;
+        
+        try {
+            $sql = "SELECT * FROM user_acc WHERE username = :username AND role = 1";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':username', $data['username']);
+            $stmt->execute();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                return [
+                    "status" => false,
+                    "message" => "Invalid admin credentials"
+                ];
+            }
+
+            if (password_verify($data['password'], $user['password'])) {
+                return [
+                    "status" => true,
+                    "role" => (int)$user['role']
+                ];
+            }
+            
+            return [
+                "status" => false,
+                "message" => "Invalid admin credentials"
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Database error: " . $e->getMessage()
+            ];
+        }
+    }
+
 }
 ?>
