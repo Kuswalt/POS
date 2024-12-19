@@ -252,20 +252,27 @@ class Delete {
 
     public function clearCart($userId) {
         global $conn;
+        
         try {
+            $conn->beginTransaction();
+            
+            // Delete all items from cart for this user
             $sql = "DELETE FROM cart WHERE user_id = :user_id";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':user_id', $userId);
             $stmt->execute();
+            
+            $conn->commit();
             
             return [
                 "status" => true,
                 "message" => "Cart cleared successfully"
             ];
         } catch (PDOException $e) {
+            $conn->rollBack();
             return [
                 "status" => false,
-                "message" => $e->getMessage()
+                "message" => "Failed to clear cart: " . $e->getMessage()
             ];
         }
     }

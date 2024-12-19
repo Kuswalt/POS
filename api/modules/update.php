@@ -21,6 +21,14 @@ class Update {
                 throw new Exception("Item not found");
             }
 
+            // Validate stock quantity is not negative
+            if ($data['stock_quantity'] < 0) {
+                return [
+                    "status" => false,
+                    "message" => "Stock quantity cannot be negative"
+                ];
+            }
+
             // Convert quantity if units are different
             $quantity = $data['stock_quantity'];
             if ($currentItem['unit_of_measure'] !== $data['unit_of_measure']) {

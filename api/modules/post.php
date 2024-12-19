@@ -143,6 +143,14 @@ class Post {
                 ];
             }
 
+            // Validate stock quantity is not negative
+            if ($data['stock_quantity'] <= 0) {
+                return [
+                    "status" => false,
+                    "message" => "Stock quantity must be greater than 0"
+                ];
+            }
+
             // Check if item already exists
             $checkSql = "SELECT inventory_id FROM inventory WHERE item_name = :item_name";
             $checkStmt = $conn->prepare($checkSql);

@@ -906,14 +906,31 @@ try {
                     }
                     break;
                 case 'clear-cart':
-                    if (!isset($data['user_id'])) {
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        
+                        if (!isset($data['user_id'])) {
+                            throw new Exception('User ID is required');
+                        }
+                        
+                        $result = $delete->clearCart($data['user_id']);
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
                         echo json_encode([
                             "status" => false,
-                            "message" => "User ID is required"
+                            "message" => "Error clearing cart: " . $e->getMessage()
                         ]);
-                        break;
                     }
-                    echo json_encode($delete->clearCart($data['user_id']));
                     break;
                 case 'remove-from-cart':
                     try {
