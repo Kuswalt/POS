@@ -103,7 +103,7 @@
       return;
     }
 
-    if (amountPaid < total) {
+    if (amountPaid < discountedTotal) {
       showAlertMessage('Amount paid cannot be less than the total amount');
       return;
     }
@@ -116,10 +116,10 @@
       });
 
       if (customerResult.status) {
-        // Create order with the discounted total
+        // Create order with discount information
         const orderResult = await ApiService.post('create-order', {
           customer_id: customerResult.customer_id,
-          total_amount: discountedTotal, // Use discounted total here
+          total_amount: discountedTotal,
           user_id: userId,
           payment_status: 'paid',
           order_items: cartItems.map(item => ({
@@ -127,57 +127,50 @@
             quantity: item.quantity,
             price: item.price
           })),
-          discount_applied: applyDiscount,
-          discount_type: discountReason
+          discount_type: applyDiscount ? discountReason : null,
+          discount_amount: applyDiscount ? (total * 0.2) : 0,
+          original_amount: total
         });
 
         if (orderResult.status) {
-          // Record sale with discounted total
-          const saleResult = await ApiService.post('add-sale', {
+          // Generate receipt with discount information
+          const receiptResult = await ApiService.post('add-receipt', {
             order_id: orderResult.order_id,
-            total_sales: discountedTotal, // Use discounted total here
-            user_id: userId
+            total_amount: discountedTotal,
+            discount_applied: applyDiscount ? 1 : 0,
+            discount_amount: applyDiscount ? (total * 0.2) : 0,
+            original_amount: total
           });
 
-          if (saleResult.status) {
-            // Generate receipt with discount information
-            const receiptResult = await ApiService.post('add-receipt', {
-              order_id: orderResult.order_id,
-              total_amount: discountedTotal, // Use discounted total here
+          if (receiptResult.status) {
+            // Clear cart
+            await ApiService.delete('clear-cart', { user_id: userId });
+            
+            // Show receipt modal with discount information
+            receiptData = {
+              receipt_id: receiptResult.receipt_id,
+              customer_name: customerName,
+              date: new Date().toLocaleString(),
+              items: cartItems,
+              total_amount: discountedTotal,
+              amount_paid: amountPaid,
+              change: change,
               discount_applied: applyDiscount,
               discount_type: discountReason,
-              original_amount: total
-            });
-
-            if (receiptResult.status) {
-              // Clear cart
-              await ApiService.delete('clear-cart', { user_id: userId });
-              
-              // Show receipt modal with discount information
-              receiptData = {
-                receipt_id: receiptResult.receipt_id,
-                customer_name: customerName,
-                date: new Date().toLocaleString(),
-                items: cartItems,
-                total_amount: discountedTotal, // Use discounted total here
-                amount_paid: amountPaid,
-                change: change,
-                discount_applied: applyDiscount,
-                discount_type: discountReason,
-                original_amount: total
-              };
-              
-              showReceiptModal = true;
-              
-              // Clear all cart-related data
-              cartItems = [];
-              customerName = '';
-              amountPaid = 0;
-              change = 0;
-              
-              // Dispatch event to notify parent component
-              dispatch('cartCleared');
-            }
+              original_amount: total,
+              discount_amount: applyDiscount ? (total * 0.2) : 0
+            };
+            
+            showReceiptModal = true;
+            
+            // Clear all cart-related data
+            cartItems = [];
+            customerName = '';
+            amountPaid = 0;
+            change = 0;
+            
+            // Dispatch event to notify parent component
+            dispatch('cartCleared');
           }
         }
       }

@@ -359,14 +359,35 @@ class Post {
                 }
             }
             
-            // Create the order
-            $sql = "INSERT INTO `order` (customer_id, order_date, total_amount, user_id, payment_status) 
-                    VALUES (:customer_id, NOW(), :total_amount, :user_id, :payment_status)";
+            // Create the order with discount information
+            $sql = "INSERT INTO `order` (
+                        customer_id, 
+                        order_date, 
+                        total_amount, 
+                        user_id, 
+                        payment_status,
+                        discount_type,
+                        discount_amount,
+                        original_amount
+                    ) VALUES (
+                        :customer_id, 
+                        NOW(), 
+                        :total_amount, 
+                        :user_id, 
+                        :payment_status,
+                        :discount_type,
+                        :discount_amount,
+                        :original_amount
+                    )";
+            
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':customer_id', $data['customer_id']);
             $stmt->bindParam(':total_amount', $data['total_amount']);
             $stmt->bindParam(':user_id', $data['user_id']);
             $stmt->bindParam(':payment_status', $data['payment_status']);
+            $stmt->bindParam(':discount_type', $data['discount_type']);
+            $stmt->bindParam(':discount_amount', $data['discount_amount']);
+            $stmt->bindParam(':original_amount', $data['original_amount']);
             $stmt->execute();
             
             $order_id = $conn->lastInsertId();
@@ -508,12 +529,30 @@ class Post {
                 ];
             }
 
-            $sql = "INSERT INTO receipt (order_id, generated_at, total_amount) 
-                    VALUES (:order_id, NOW(), :total_amount)";
+            $sql = "INSERT INTO receipt (
+                        order_id, 
+                        generated_at, 
+                        total_amount,
+                        discount_applied,
+                        discount_amount,
+                        original_amount
+                    ) VALUES (
+                        :order_id, 
+                        NOW(), 
+                        :total_amount,
+                        :discount_applied,
+                        :discount_amount,
+                        :original_amount
+                    )";
             
             $stmt = $conn->prepare($sql);
+            $discountApplied = (bool)$data['discount_applied'];
+            
             $stmt->bindParam(':order_id', $data['order_id']);
             $stmt->bindParam(':total_amount', $data['total_amount']);
+            $stmt->bindParam(':discount_applied', $discountApplied, PDO::PARAM_BOOL);
+            $stmt->bindParam(':discount_amount', $data['discount_amount']);
+            $stmt->bindParam(':original_amount', $data['original_amount']);
             
             if ($stmt->execute()) {
                 return [
@@ -600,6 +639,15 @@ class Post {
         global $conn;
         
         try {
+            // Validate quantity is positive
+            if (!isset($data['quantity_needed']) || $data['quantity_needed'] <= 0) {
+                return [
+                    "status" => false,
+                    "message" => "Quantity must be greater than 0",
+                    "data" => null
+                ];
+            }
+
             // Check if ingredient already exists in recipe
             $checkSql = "SELECT COUNT(*) FROM product_ingredients 
                         WHERE product_id = :product_id AND inventory_id = :inventory_id";
@@ -792,12 +840,23 @@ class Post {
         try {
             $conn->beginTransaction();
             
-            // Insert into archived_sales
+            // Insert into archived_sales with discount information
             $archiveSql = "INSERT INTO archived_sales 
                            (order_id, customer_id, order_date, total_amount, user_id, 
-                            payment_status, archived_date, archived_by)
-                           SELECT o.order_id, o.customer_id, o.order_date, o.total_amount, 
-                                  o.user_id, o.payment_status, NOW(), :archived_by
+                            payment_status, archived_date, archived_by,
+                            discount_type, discount_amount, original_amount)
+                           SELECT 
+                               o.order_id, 
+                               o.customer_id, 
+                               o.order_date, 
+                               o.total_amount, 
+                               o.user_id, 
+                               o.payment_status, 
+                               NOW(), 
+                               :archived_by,
+                               CASE WHEN o.discount_type = '' THEN NULL ELSE o.discount_type END,
+                               NULLIF(o.discount_amount, 0),
+                               NULLIF(o.original_amount, 0)
                            FROM `order` o
                            WHERE o.order_id = :order_id";
             
@@ -852,12 +911,23 @@ class Post {
             $conn->beginTransaction();
             
             foreach ($data['order_ids'] as $orderId) {
-                // Insert into archived_sales
+                // Insert into archived_sales with discount information
                 $archiveSql = "INSERT INTO archived_sales 
                               (order_id, customer_id, order_date, total_amount, user_id, 
-                               payment_status, archived_date, archived_by)
-                              SELECT o.order_id, o.customer_id, o.order_date, o.total_amount, 
-                                     o.user_id, o.payment_status, NOW(), :archived_by
+                               payment_status, archived_date, archived_by,
+                               discount_type, discount_amount, original_amount)
+                              SELECT 
+                                  o.order_id, 
+                                  o.customer_id, 
+                                  o.order_date, 
+                                  o.total_amount, 
+                                  o.user_id, 
+                                  o.payment_status, 
+                                  NOW(), 
+                                  :archived_by,
+                                  CASE WHEN o.discount_type = '' THEN NULL ELSE o.discount_type END,
+                                  NULLIF(o.discount_amount, 0),
+                                  NULLIF(o.original_amount, 0)
                               FROM `order` o
                               WHERE o.order_id = :order_id";
                 
@@ -938,6 +1008,187 @@ class Post {
             return [
                 "status" => false,
                 "message" => "Database error: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function restoreArchivedSale($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Get archived sale data
+            $sql = "SELECT * FROM archived_sales WHERE archive_id = :archive_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':archive_id', $data['archive_id']);
+            $stmt->execute();
+            $archivedSale = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$archivedSale) {
+                throw new Exception("Archived sale not found");
+            }
+            
+            // 1. Restore to orders table
+            $sql = "INSERT INTO `order` (
+                        order_id, customer_id, order_date, total_amount, 
+                        user_id, payment_status, discount_type, 
+                        discount_amount, original_amount
+                    ) VALUES (
+                        :order_id, :customer_id, :order_date, :total_amount,
+                        :user_id, :payment_status, :discount_type,
+                        :discount_amount, :original_amount
+                    )";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([
+                ':order_id' => $archivedSale['order_id'],
+                ':customer_id' => $archivedSale['customer_id'],
+                ':order_date' => $archivedSale['order_date'],
+                ':total_amount' => $archivedSale['total_amount'],
+                ':user_id' => $archivedSale['user_id'],
+                ':payment_status' => $archivedSale['payment_status'],
+                ':discount_type' => $archivedSale['discount_type'],
+                ':discount_amount' => $archivedSale['discount_amount'],
+                ':original_amount' => $archivedSale['original_amount']
+            ]);
+
+            // 2. Insert into sales table
+            $sql = "INSERT INTO sales (
+                        order_id, total_sales, sales_date, user_id
+                    ) VALUES (
+                        :order_id, :total_sales, :sales_date, :user_id
+                    )";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([
+                ':order_id' => $archivedSale['order_id'],
+                ':total_sales' => $archivedSale['total_amount'],
+                ':sales_date' => $archivedSale['order_date'],
+                ':user_id' => $archivedSale['user_id']
+            ]);
+
+            // 3. Insert into receipt table
+            $sql = "INSERT INTO receipt (
+                        order_id, generated_at, total_amount,
+                        discount_applied, discount_amount, original_amount
+                    ) VALUES (
+                        :order_id, :generated_at, :total_amount,
+                        :discount_applied, :discount_amount, :original_amount
+                    )";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([
+                ':order_id' => $archivedSale['order_id'],
+                ':generated_at' => $archivedSale['order_date'],
+                ':total_amount' => $archivedSale['total_amount'],
+                ':discount_applied' => $archivedSale['discount_type'] ? 1 : 0,
+                ':discount_amount' => $archivedSale['discount_amount'] ?? 0,
+                ':original_amount' => $archivedSale['original_amount'] ?? $archivedSale['total_amount']
+            ]);
+
+            // 4. Get order items from archived_order_items if exists, otherwise create a default entry
+            $sql = "SELECT * FROM archived_order_items WHERE order_id = :order_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':order_id', $archivedSale['order_id']);
+            $stmt->execute();
+            $orderItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($orderItems)) {
+                // Restore original order items
+                foreach ($orderItems as $item) {
+                    $sql = "INSERT INTO order_item (
+                                order_id, product_id, quantity
+                            ) VALUES (
+                                :order_id, :product_id, :quantity
+                            )";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->execute([
+                        ':order_id' => $item['order_id'],
+                        ':product_id' => $item['product_id'],
+                        ':quantity' => $item['quantity']
+                    ]);
+                }
+            } else {
+                // Create a default order item if no archived items exist
+                $sql = "INSERT INTO order_item (
+                            order_id, product_id, quantity
+                        ) VALUES (
+                            :order_id, 
+                            (SELECT product_id FROM product LIMIT 1), 
+                            1
+                        )";
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([
+                    ':order_id' => $archivedSale['order_id']
+                ]);
+            }
+            
+            // Finally, delete from archived_sales
+            $sql = "DELETE FROM archived_sales WHERE archive_id = :archive_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':archive_id', $data['archive_id']);
+            $stmt->execute();
+            
+            // Also delete from archived_order_items if exists
+            if (!empty($orderItems)) {
+                $sql = "DELETE FROM archived_order_items WHERE order_id = :order_id";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':order_id', $archivedSale['order_id']);
+                $stmt->execute();
+            }
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Sale restored successfully"
+            ];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to restore sale: " . $e->getMessage()
+            ];
+        }
+    }
+
+    public function archiveSale($data) {
+        global $conn;
+        
+        try {
+            $conn->beginTransaction();
+            
+            // First get the order items
+            $sql = "SELECT * FROM order_item WHERE order_id = :order_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':order_id', $data['order_id']);
+            $stmt->execute();
+            $orderItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Archive the order items
+            foreach ($orderItems as $item) {
+                $sql = "INSERT INTO archived_order_items (order_id, product_id, quantity)
+                       VALUES (:order_id, :product_id, :quantity)";
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([
+                    ':order_id' => $item['order_id'],
+                    ':product_id' => $item['product_id'],
+                    ':quantity' => $item['quantity']
+                ]);
+            }
+
+            // Rest of your existing archive logic...
+            
+            $conn->commit();
+            return [
+                "status" => true,
+                "message" => "Sale archived successfully"
+            ];
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            return [
+                "status" => false,
+                "message" => "Failed to archive sale: " . $e->getMessage()
             ];
         }
     }

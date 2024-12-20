@@ -6,16 +6,22 @@
   import * as XLSX from 'xlsx';
   import { ApiService } from '$lib/services/api';
   import { userStore } from '$lib/auth';
+  import { encryptionService } from '$lib/services/encryption';
 
   let y = 0;
   let innerWidth = 0;
   let innerHeight = 0;
   
+  // Add state for active tab
+  let activeTab: 'sales' | 'archived' = 'sales';
+  
   // Update the data storage variables
   let salesData = [];
+  let archivedSalesData: any[] = [];
   let chartData = {};  
-  let dailyChartData = {};  // Add this new variable
+  let dailyChartData = {};
   let filteredSalesData = [];
+  let filteredArchivedData: any[] = [];
   
   // Filter states
   let searchQuery = '';
@@ -24,7 +30,10 @@
   let selectedYear = '';
   
   // Unique years and months for filters
-  $: years = [...new Set(salesData.map(sale => new Date(sale.order_date).getFullYear()))].sort((a, b) => b - a);
+  $: years = [...new Set([
+    ...salesData.map(sale => new Date(sale.order_date).getFullYear()),
+    ...archivedSalesData.map(sale => new Date(sale.archived_date).getFullYear())
+  ])].sort((a, b) => b - a);
   $: months = [...Array(12)].map((_, i) => ({
     value: i + 1,
     label: new Date(2000, i, 1).toLocaleString('default', { month: 'long' })
@@ -464,25 +473,54 @@
   }
 
   // Add this function to handle Excel export
-  function exportToExcel() {
-    // Prepare the data for export
-    const exportData = filteredSalesData.map(sale => ({
-      Staff: sale.username,
-      Product: sale.product_name,
-      Quantity: sale.quantity,
-      'Customer Name': sale.customer_name,
-      'Amount Paid': `₱${parseFloat(sale.amount_paid).toFixed(2)}`,
-      'Total Amount': `₱${parseFloat(sale.total_amount).toFixed(2)}`,
-      Date: new Date(sale.order_date).toLocaleDateString()
-    }));
+  async function exportToExcel() {
+    try {
+      // Format the data for Excel
+      const excelData = filteredSalesData.map(sale => ({
+        'Staff': sale.username,
+        'Product': sale.product_name,
+        'Quantity': sale.quantity,
+        'Customer Name': sale.customer_name,
+        'Amount Paid': parseFloat(sale.amount_paid).toFixed(2),
+        'Total Amount': parseFloat(sale.total_amount).toFixed(2),
+        'Discount Type': sale.discount_type || 'None',
+        'Discount Amount': sale.discount_amount ? parseFloat(sale.discount_amount).toFixed(2) : '0.00',
+        'Original Amount': sale.original_amount ? parseFloat(sale.original_amount).toFixed(2) : sale.total_amount,
+        'Date': new Date(sale.order_date).toLocaleString()
+      }));
 
-    // Create worksheet
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sales Data');
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-    // Generate and download file
-    XLSX.writeFile(wb, `sales_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      // Set column widths
+      const columnWidths = [
+        { wch: 15 },  // Staff
+        { wch: 30 },  // Product
+        { wch: 10 },  // Quantity
+        { wch: 20 },  // Customer Name
+        { wch: 15 },  // Amount Paid
+        { wch: 15 },  // Total Amount
+        { wch: 15 },  // Discount Type
+        { wch: 15 },  // Discount Amount
+        { wch: 15 },  // Original Amount
+        { wch: 20 },  // Date
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add the worksheet to the workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales Data');
+
+      // Generate filename with current date
+      const date = new Date();
+      const filename = `sales_report_${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}.xlsx`;
+
+      // Save the file
+      XLSX.writeFile(workbook, filename);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Failed to export data to Excel');
+    }
   }
 
   // Add print function
@@ -566,51 +604,51 @@
   }
 
   // Update the deleteOrder function
-  async function deleteOrder(orderId: number) {
-    if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
-      return;
-    }
+  // async function deleteOrder(orderId: number) {
+  //   if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+  //     return;
+  //   }
 
-    try {
-      const response = await ApiService.delete('delete-order', {
-        order_id: orderId,
-        user_id: $userStore.userId
-      });
+  //   try {
+  //     const response = await ApiService.delete('delete-order', {
+  //       order_id: orderId,
+  //       user_id: $userStore.userId
+  //     });
 
-      if (response.status) {
-        // Refresh the sales data
-        const refreshResponse = await ApiService.get('get-sales-data');
-        if (refreshResponse.status) {
-          salesData = refreshResponse.data;
-          chartData = refreshResponse.chartData;
-          dailyChartData = refreshResponse.dailyChartData;
-          filteredSalesData = salesData;
-          await initializeCharts();
-          alert('Order deleted successfully');
-        }
-      } else {
-        alert('Failed to delete order: ' + response.message);
-      }
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      alert('Error deleting order. Please try again.');
-    }
-  }
+  //     if (response.status) {
+  //       // Refresh the sales data
+  //       const refreshResponse = await ApiService.get('get-sales-data');
+  //       if (refreshResponse.status) {
+  //         salesData = refreshResponse.data;
+  //         chartData = refreshResponse.chartData;
+  //         dailyChartData = refreshResponse.dailyChartData;
+  //         filteredSalesData = salesData;
+  //         await initializeCharts();
+  //         alert('Order deleted successfully');
+  //       }
+  //     } else {
+  //       alert('Failed to delete order: ' + response.message);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error deleting order:', error);
+  //     alert('Error deleting order. Please try again.');
+  //   }
+  // }
 
   // Update deleteAllOrders to only delete filtered data
   async function deleteAllOrders() {
     if (filteredSalesData.length === 0) {
-      alert('No data to delete');
+      alert('No data to archive');
       return;
     }
 
-    if (!confirm('Are you sure you want to delete ALL filtered orders? This action cannot be undone!')) {
+    if (!confirm('Are you sure you want to archive ALL filtered orders? This action cannot be undone!')) {
       return;
     }
 
     try {
       const orderIds = filteredSalesData.map(sale => sale.order_id);
-      const response = await ApiService.delete('delete-filtered-orders', {
+      const response = await ApiService.post('archive-filtered-sales', {
         order_ids: orderIds,
         user_id: $userStore.userId
       });
@@ -624,14 +662,14 @@
           dailyChartData = refreshResponse.dailyChartData;
           filteredSalesData = salesData;
           await initializeCharts();
-          alert('Selected orders deleted successfully');
+          alert('Selected orders archived successfully');
         }
       } else {
-        alert('Failed to delete orders: ' + response.message);
+        alert('Failed to archive orders: ' + response.message);
       }
     } catch (error) {
-      console.error('Error deleting orders:', error);
-      alert('Error deleting orders. Please try again.');
+      console.error('Error archiving orders:', error);
+      alert('Error archiving orders. Please try again.');
     }
   }
 
@@ -825,34 +863,63 @@
     }
   }
 
+  // Add function to handle tab change
+  // async function handleTabChange(tab: 'sales' | 'archived') {
+  //   activeTab = tab;
+  //   try {
+  //     if (tab === 'archived') {
+  //       const archivedResult = await ApiService.get<{
+  //         status: boolean;
+  //         data: Array<{
+  //           archive_id: number;
+  //           order_id: number;
+  //           username: string;
+  //           customer_id: number;
+  //           order_date: string;
+  //           total_amount: number;
+  //           payment_status: string;
+  //           archived_date: string;
+  //           discount_type: string | null;
+  //           discount_amount: number | null;
+  //           original_amount: number | null;
+  //           archived_by_user: string;
+  //         }>;
+  //       }>('get-archived-sales');
+        
+  //       if (archivedResult.status) {
+  //         archivedSalesData = archivedResult.data;
+  //         filteredArchivedData = archivedSalesData;
+  //       }
+  //     } else {
+  //       const result = await ApiService.get('get-sales-data');
+  //       if (result.status) {
+  //         salesData = result.data;
+  //         chartData = result.chartData;
+  //         dailyChartData = result.dailyChartData;
+  //         filteredSalesData = salesData;
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error(`Error fetching ${tab} data:`, error);
+  //   }
+  // }
+
   // Update the onMount function to handle the filtered data for charts
   onMount(async () => {
     try {
-      const result = await ApiService.get<SalesData>('get-sales-data');
-      if (result.status) {
-        salesData = result.data;
-        
-        // Filter data based on user role
-        if ($userStore.role === 0) {
-          salesData = salesData.filter(sale => 
-            sale.username === $userStore.username
-          );
+      if (activeTab === 'sales') {
+        const result = await ApiService.get('get-sales-data');
+        if (result.status) {
+          salesData = result.data;
+          chartData = result.chartData;
+          dailyChartData = result.dailyChartData;
+          filteredSalesData = salesData;
         }
-
-        // Update filtered data and charts
-        filteredSalesData = salesData;
-        chartData = result.chartData;
-        dailyChartData = result.dailyChartData;
-
-        // Only initialize charts for admin users
-        if ($userStore.role === 1) {
-          await initializeCharts();
-        }
-      } else {
-        console.error('Failed to fetch sales data:', result.message);
       }
+      await fetchArchivedSales();
+      await initializeCharts();
     } catch (error) {
-      console.error('Error fetching sales data:', error);
+      console.error('Error fetching data:', error);
     }
   });
 
@@ -861,16 +928,190 @@
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // First, add a watch on activeTab
+  $: if (activeTab === 'sales' && salesData.length > 0) {
+    // Reinitialize charts when switching back to active sales
+    setTimeout(() => {
+      initializeCharts();
+    }, 0);
+  }
+
+  function clearCharts() {
+    if (salesPerPeriodChart) {
+      salesPerPeriodChart.destroy();
+      salesPerPeriodChart = null;
+    }
+    if (salesPerProductChart) {
+      salesPerProductChart.destroy();
+      salesPerProductChart = null;
+    }
+    if (salesPerDayChart) {
+      salesPerDayChart.destroy();
+      salesPerDayChart = null;
+    }
+    if (salesPerProductPerDayChart) {
+      salesPerProductPerDayChart.destroy();
+      salesPerProductPerDayChart = null;
+    }
+  }
+
+  // Update the switchTab function
+  async function switchTab(tab: 'sales' | 'archived') {
+    clearCharts();
+    activeTab = tab;
+    if (tab === 'sales') {
+      searchQuery = '';
+      selectedDay = '';
+      selectedMonth = '';
+      selectedYear = '';
+      currentPage = 1;
+      
+      // Add reload functionality for sales data
+      try {
+        const result = await ApiService.get('get-sales-data');
+        if (result.status) {
+          salesData = result.data;
+          chartData = result.chartData;
+          dailyChartData = result.dailyChartData;
+          filteredSalesData = salesData;
+          
+          // Initialize charts after data is loaded
+          setTimeout(() => {
+            initializeCharts();
+          }, 0);
+        }
+      } catch (error) {
+        console.error('Error reloading sales data:', error);
+      }
+    } else if (tab === 'archived') {
+      fetchArchivedSales();
+    }
+  }
+
+  // Update the fetchArchivedSales function
+  async function fetchArchivedSales() {
+    try {
+      const response = await ApiService.get('get-archived-sales');
+      if (Array.isArray(response)) {
+        filteredArchivedData = response;
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      filteredArchivedData = [];
+    }
+  }
+
+  // Call this in onMount
+  onMount(() => {
+    if (activeTab === 'archived') {
+      fetchArchivedSales();
+    }
+  });
+
+  // Update the reactive statement for archived data to only filter by user role
+  $: {
+    if ($userStore.role === 0) {
+      // Staff can only see their own archived transactions
+      filteredArchivedData = archivedSalesData.filter(sale => 
+        sale.username === $userStore.username
+      );
+    } else {
+      // Admin can see all archived transactions
+      filteredArchivedData = archivedSalesData;
+    }
+  }
+
+  // Make sure the pagination updates when filters change
+  $: {
+    if (activeTab === 'archived') {
+      totalPages = Math.ceil(filteredArchivedData.length / itemsPerPage);
+      displayedData = filteredArchivedData.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      );
+    }
+  }
+
+  // Reset pagination when changing archive filters
+  $: {
+    selectedYear;
+    selectedMonth;
+    selectedDay;
+    if (activeTab === 'archived') {
+      currentPage = 1;
+    }
+  }
+
+  // Add reset function for archive filters
+  function resetArchiveFilters() {
+    selectedYear = '';
+    selectedMonth = '';
+    selectedDay = '';
+  }
+
+  // Add these functions to handle
+  async function restoreArchivedSale(archiveId: number) {
+    if (!confirm('Are you sure you want to restore this archived sale?')) {
+      return;
+    }
+
+    try {
+      const response = await ApiService.post('restore-archived-sale', {
+        archive_id: archiveId,
+        user_id: $userStore.userId
+      });
+
+      if (response.status) {
+        await fetchArchivedSales(); // Refresh archived sales data
+        const salesResult = await ApiService.get('get-sales-data');
+        if (salesResult.status) {
+          salesData = salesResult.data;
+          chartData = salesResult.chartData;
+          dailyChartData = salesResult.dailyChartData;
+          filteredSalesData = salesData;
+          await initializeCharts();
+        }
+        alert('Sale restored successfully');
+      } else {
+        alert('Failed to restore sale: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error restoring sale:', error);
+      alert('Error restoring sale. Please try again.');
+    }
+  }
+
+  async function deleteArchivedSale(archiveId: number) {
+    if (!confirm('Are you sure you want to permanently delete this archived sale? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await ApiService.delete('delete-archived-sale', {
+        archive_id: archiveId,
+        user_id: $userStore.userId
+      });
+
+      if (response.status) {
+        await fetchArchivedSales(); // Refresh the archived sales list
+        alert('Sale deleted successfully');
+      } else {
+        alert('Failed to delete sale: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error deleting sale:', error);
+      alert('Error deleting sale. Please try again.');
+    }
+  }
 </script>
 
 <Header {y} {innerWidth} {innerHeight} />
 
 <div class="content">
   <div class="sales-container">
-    <h2 class="text-2xl font-bold mb-4">Sales History</h2>
-    
-    <!-- Only show charts for admin users -->
-    {#if $userStore.role === 1}
+    <!-- Charts section -->
+    {#if activeTab === 'sales' && $userStore.role === 1}
       <div class="charts-container">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="chart-wrapper">
@@ -887,89 +1128,129 @@
           </div>
         </div>
       </div>
+    {/if}
 
-      <!-- Admin-only action buttons -->
-      <div class="filter-buttons">
-        <button
-          on:click={exportToExcel}
-          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+    <h2 class="text-2xl font-bold mb-4">Sales History</h2>
+    
+    <!-- Add tab navigation -->
+    {#if $userStore.role === 1}
+      <div class="tabs-container">
+        <button 
+          class="tab-button {activeTab === 'sales' ? 'active' : ''}" 
+          on:click={() => switchTab('sales')}
         >
-          Export to Excel
+          Active Sales
         </button>
-        <button
-          on:click={printCharts}
-          class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        <button 
+          class="tab-button {activeTab === 'archived' ? 'active' : ''}" 
+          on:click={() => switchTab('archived')}
         >
-          Print PDF
-        </button>
-        <button
-          on:click={deleteAllOrders}
-          class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-        >
-          Delete All Orders
+          Archived Sales
         </button>
       </div>
     {/if}
 
-    <!-- Show appropriate filters -->
-    <div class="filters">
-      <input
-        type="text"
-        placeholder="Search by product name..."
-        bind:value={searchQuery}
-        class="search-input"
-      />
-      
-      <!-- Only show date filters for admin users -->
-      {#if $userStore.role === 1}
-        <select bind:value={selectedYear} class="filter-select">
-          <option value="">All Years</option>
-          {#each years as year}
-            <option value={year}>{year}</option>
-          {/each}
-        </select>
+    <!-- Filters section -->
+    {#if $userStore.role === 1}
+      <div class="filters">
+        {#if activeTab === 'sales'}
+          <input
+            type="text"
+            placeholder="Search by product name..."
+            bind:value={searchQuery}
+            class="search-input"
+          />
+          
+          <select bind:value={selectedYear} class="filter-select">
+            <option value="">All Years</option>
+            {#each years as year}
+              <option value={year}>{year}</option>
+            {/each}
+          </select>
 
-        <select bind:value={selectedMonth} class="filter-select">
-          <option value="">All Months</option>
-          {#each months as month}
-            <option value={month.value}>{month.label}</option>
-          {/each}
-        </select>
+          <select bind:value={selectedMonth} class="filter-select">
+            <option value="">All Months</option>
+            {#each months as month}
+              <option value={month.value}>{month.label}</option>
+            {/each}
+          </select>
 
-        <select bind:value={selectedDay} class="filter-select">
-          <option value="">All Days</option>
-          {#each days as day}
-            <option value={day}>{day}</option>
-          {/each}
-        </select>
+          <select bind:value={selectedDay} class="filter-select">
+            <option value="">All Days</option>
+            {#each days as day}
+              <option value={day}>{day}</option>
+            {/each}
+          </select>
 
-        <button on:click={resetFilters} class="reset-button">
-          Reset Filters
+          <button on:click={resetFilters} class="reset-button">
+            Reset Filters
+          </button>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Add the action buttons container -->
+    {#if activeTab === 'sales' && $userStore.role === 1}
+      <div class="action-buttons flex gap-4 mb-4">
+        <button 
+          on:click={exportToExcel}
+          class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        >
+          <i class="fas fa-file-excel"></i>
+          Export to Excel
         </button>
-      {/if}
-    </div>
+        
+        <button 
+          on:click={printCharts}
+          class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        >
+          <i class="fas fa-print"></i>
+          Print Charts
+        </button>
 
-    <!-- Table -->
+        {#if filteredSalesData.length > 0}
+          <button 
+            on:click={deleteAllOrders}
+            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <i class="fas fa-archive"></i>
+            Archive All Filtered
+          </button>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Table section -->
     <div class="overflow-x-auto">
-      <!-- Moved Pagination controls to top -->
-      {#if totalPages > 0}
-        <div class="pagination-controls mb-4">
+      {#if activeTab === 'sales'}
+        <!-- Pagination controls above table -->
+        <div class="pagination-controls">
           <div class="pagination-info">
-            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesData.length)} of {filteredSalesData.length} entries
+            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredSalesData.length)} 
+            to {Math.min(currentPage * itemsPerPage, filteredSalesData.length)} 
+            of {filteredSalesData.length} entries
           </div>
           
           <div class="pagination-buttons">
             <button 
-              class="pagination-button"
+              class="pagination-button" 
+              on:click={() => changePage(1)}
               disabled={currentPage === 1}
+            >
+              First
+            </button>
+            
+            <button 
+              class="pagination-button"
               on:click={() => changePage(currentPage - 1)}
+              disabled={currentPage === 1}
             >
               Previous
             </button>
-
+            
             {#each getPageNumbers() as pageNum}
-              {#if typeof pageNum === 'string'}
-                <span class="pagination-ellipsis">{pageNum}</span>
+              {#if pageNum === '...'}
+                <span class="pagination-ellipsis">...</span>
               {:else}
                 <button 
                   class="pagination-button {pageNum === currentPage ? 'active' : ''}"
@@ -979,65 +1260,148 @@
                 </button>
               {/if}
             {/each}
-
+            
             <button 
               class="pagination-button"
-              disabled={currentPage === totalPages}
               on:click={() => changePage(currentPage + 1)}
+              disabled={currentPage === totalPages}
             >
               Next
             </button>
+            
+            <button 
+              class="pagination-button"
+              on:click={() => changePage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              Last
+            </button>
           </div>
         </div>
-      {/if}
 
-      <table class="responsive-table">
-        <thead>
-          <tr>
-            <th>Staff</th>
-            <th>Product</th>
-            <th>Quantity</th>
-            <th>Customer Name</th>
-            <th>Amount Paid</th>
-            <th>Total Amount</th>
-            <th>Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each displayedData as sale}
+        <!-- Existing sales table -->
+        <table class="responsive-table">
+          <thead>
             <tr>
-              <td data-label="Staff">{sale.username}</td>
-              <td data-label="Product">{sale.product_name}</td>
-              <td data-label="Quantity">{sale.quantity}</td>
-              <td data-label="Customer">{sale.customer_name}</td>
-              <td data-label="Amount Paid">₱{parseFloat(sale.amount_paid).toFixed(2)}</td>
-              <td data-label="Total">₱{parseFloat(sale.total_amount).toFixed(2)}</td>
-              <td data-label="Date">{new Date(sale.order_date).toLocaleDateString()}</td>
-              <!-- Show delete action for all users -->
-              <td class="actions" data-label="Actions">
-                {#if $userStore.role === 1}
-                  <!-- Admin delete button -->
-                  <button
-                    on:click={() => archiveSale(sale.order_id)}
-                    class="text-blue-600 hover:text-blue-900 font-medium"
-                  >
-                    Delete
-                  </button>
-                {:else}
-                  <!-- Staff delete button with admin verification -->
-                  <button
-                    on:click={() => showAdminVerification(sale.order_id)}
-                    class="text-blue-600 hover:text-blue-900 font-medium"
-                  >
-                    Request Delete
-                  </button>
-                {/if}
-              </td>
+              <th>Order ID</th>
+              <th>Staff</th>
+              <th>Product</th>
+              <th>Quantity</th>
+              <th>Customer Name</th>
+              <th>Amount Paid</th>
+              <th>Total Amount</th>
+              <th>Discount Type</th>
+              <th>Discount Amount</th>
+              <th>Date</th>
+              <th>Actions</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each displayedData as sale}
+              <tr>
+                <td data-label="Order ID">{sale.order_id}</td>
+                <td data-label="Staff">{sale.username}</td>
+                <td data-label="Product">{sale.product_name}</td>
+                <td data-label="Quantity">{sale.quantity}</td>
+                <td data-label="Customer">{sale.customer_name}</td>
+                <td data-label="Amount Paid">₱{parseFloat(sale.amount_paid).toFixed(2)}</td>
+                <td data-label="Total">₱{parseFloat(sale.total_amount).toFixed(2)}</td>
+                <td data-label="Discount Type">
+                  {#if sale.discount_type && sale.discount_type !== 'null'}
+                    <span class="discount-badge {sale.discount_type.toLowerCase()}">
+                      {sale.discount_type}
+                    </span>
+                  {:else}
+                    -
+                  {/if}
+                </td>
+                <td data-label="Discount Amount">
+                  {#if sale.discount_amount && parseFloat(sale.discount_amount) > 0}
+                    <span class="discount-amount">
+                      -₱{parseFloat(sale.discount_amount).toFixed(2)}
+                    </span>
+                  {:else}
+                    -
+                  {/if}
+                </td>
+                <td data-label="Date">{new Date(sale.order_date).toLocaleDateString()}</td>
+                <td class="actions" data-label="Actions">
+                  {#if $userStore.role === 1}
+                    <!-- Admin delete button -->
+                    <button
+                      on:click={() => archiveSale(sale.order_id)}
+                      class="text-blue-600 hover:text-blue-900 font-medium"
+                    >
+                      Archive
+                    </button>
+                  {:else}
+                    <!-- Staff delete button with admin verification -->
+                    <button
+                      on:click={() => showAdminVerification(sale.order_id)}
+                      class="text-blue-600 hover:text-blue-900 font-medium"
+                    >
+                      Request Delete
+                    </button>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {:else}
+        <!-- Archived sales table -->
+        <div class="table-container">
+          <table class="responsive-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Staff</th>
+                <th>Total Amount</th>
+                <th>Payment Status</th>
+                <th>Order Date</th>
+                <th>Archived Date</th>
+                <th>Archived By</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#if filteredArchivedData && filteredArchivedData.length > 0}
+                {#each filteredArchivedData as sale}
+                  <tr>
+                    <td>{sale.order_id}</td>
+                    <td>{sale.username}</td>
+                    <td>₱{parseFloat(sale.total_amount).toFixed(2)}</td>
+                    <td>{sale.payment_status}</td>
+                    <td>{new Date(sale.order_date).toLocaleString()}</td>
+                    <td>{new Date(sale.archived_date).toLocaleString()}</td>
+                    <td>{sale.archived_by_user}</td>
+                    <td class="actions">
+                      {#if $userStore.role === 1}
+                        <button
+                          on:click={() => restoreArchivedSale(sale.archive_id)}
+                          class="text-green-600 hover:text-green-900 font-medium mr-2"
+                        >
+                          Restore
+                        </button>
+                        <button
+                          on:click={() => deleteArchivedSale(sale.archive_id)}
+                          class="text-red-600 hover:text-red-900 font-medium"
+                        >
+                          Delete
+                        </button>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              {:else}
+                <tr>
+                  <td colspan="8" class="text-center">No archived sales data available</td>
+                </tr>
+              {/if}
+            </tbody>
+          </table>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
@@ -1234,6 +1598,10 @@
       justify-content: center;
       flex-wrap: wrap;
     }
+
+    .pagination-info {
+      text-align: center;
+    }
   }
 
   /* Update/add these modal styles */
@@ -1323,6 +1691,170 @@
   /* Ensure modal is above other content */
   :global(body) {
     position: relative;
+  }
+
+  .discount-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  .discount-badge.senior {
+    background-color: #93c5fd;
+    color: #1e40af;
+  }
+
+  .discount-badge.pwd {
+    background-color: #fde68a;
+    color: #92400e;
+  }
+
+  .discount-amount {
+    color: #dc2626;
+    font-weight: 500;
+  }
+
+  @media (max-width: 768px) {
+    td[data-label="Discount Type"],
+    td[data-label="Discount Amount"] {
+      text-align: right;
+    }
+
+    .discount-badge {
+      width: 100%;
+      text-align: center;
+    }
+  }
+
+  /* Add these styles for tab navigation */
+  .tabs-container {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: #faedcd;
+    border-radius: 0.5rem 0.5rem 0 0;
+    margin-bottom: 1rem;
+  }
+
+  .tab-button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: #d4a373;
+    color: white;
+    font-weight: 500;
+    transition: all 0.2s;
+    opacity: 0.7;
+  }
+
+  .tab-button:hover {
+    opacity: 0.9;
+  }
+
+  .tab-button.active {
+    opacity: 1;
+    background: #d4a373;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    .tabs-container {
+      padding: 0.5rem;
+    }
+
+    .tab-button {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+  }
+
+  /* Update action buttons styles */
+  .action-buttons {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #faedcd;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .action-buttons button {
+    transition: all 0.2s;
+    flex: 1;
+    min-width: max-content;
+    justify-content: center;
+  }
+
+  .action-buttons button:hover {
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 768px) {
+    .action-buttons {
+      flex-direction: column;
+      padding: 0.75rem;
+    }
+
+    .action-buttons button {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .table-container {
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+
+  .responsive-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .responsive-table th,
+  .responsive-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+
+  .responsive-table th {
+    background: #d4a373;
+    color: white;
+    font-weight: 600;
+  }
+
+  .discount-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .discount-badge.senior {
+    background-color: #93c5fd;
+    color: #1e40af;
+  }
+
+  .discount-badge.pwd {
+    background-color: #fde68a;
+    color: #92400e;
+  }
+
+  .discount-amount {
+    color: #dc2626;
+    font-weight: 500;
   }
 </style>
 

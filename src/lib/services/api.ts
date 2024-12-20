@@ -82,7 +82,12 @@ export class ApiService {
 
             const result = await response.json();
             if (result.data) {
-                return await encryptionService.decrypt(result.data) as T;
+                try {
+                    return await encryptionService.decrypt(result.data) as T;
+                } catch (decryptError) {
+                    console.error('Decryption error:', decryptError);
+                    return result as T;
+                }
             }
             return result as T;
         } catch (error) {

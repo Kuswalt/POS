@@ -85,7 +85,8 @@ export class EncryptionService {
             return JSON.parse(decryptedStr);
         } catch (error) {
             console.error('Decryption error:', error);
-            throw error;
+            // Return empty array instead of throwing error
+            return [];
         }
     }
 }

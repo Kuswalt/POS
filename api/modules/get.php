@@ -74,6 +74,9 @@ class Get {
                     p.name as product_name,
                     p.price as unit_price,
                     oi.quantity,
+                    o.discount_type,
+                    o.discount_amount,
+                    o.original_amount,
                     (p.price * oi.quantity) as line_total
                 FROM `order` o
                 JOIN user_acc ua ON o.user_id = ua.User_id
@@ -98,6 +101,9 @@ class Get {
                         'amount_paid' => $row['amount_paid'],
                         'total_amount' => $row['total_amount'],
                         'order_date' => $row['order_date'],
+                        'discount_type' => $row['discount_type'],
+                        'discount_amount' => $row['discount_amount'],
+                        'original_amount' => $row['original_amount'],
                         'products' => [],
                         'quantities' => []
                     ];
@@ -116,6 +122,9 @@ class Get {
                     'customer_name' => $group['customer_name'],
                     'amount_paid' => $group['amount_paid'],
                     'total_amount' => $group['total_amount'],
+                    'discount_type' => $group['discount_type'],
+                    'discount_amount' => $group['discount_amount'],
+                    'original_amount' => $group['original_amount'],
                     'order_date' => $group['order_date']
                 ];
             }, $groupedResults);
@@ -575,6 +584,41 @@ class Get {
             return [
                 "status" => false,
                 "message" => "Error fetching staff: " . $e->getMessage()
+            ];
+        }
+    }
+    public function getArchivedSalesData() {
+        global $conn;
+        
+        try {
+            $sql = "SELECT 
+                    a.archive_id,
+                    a.order_id,
+                    a.customer_id,
+                    a.order_date,
+                    a.total_amount,
+                    a.payment_status,
+                    a.archived_date,
+                    ua.username,
+                    ua2.username as archived_by_user
+                    FROM archived_sales a
+                    JOIN user_acc ua ON a.user_id = ua.User_id
+                    JOIN user_acc ua2 ON a.archived_by = ua2.User_id
+                    ORDER BY a.archived_date DESC";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            return [
+                "status" => true,
+                "data" => $results
+            ];
+            
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Failed to fetch archived sales: " . $e->getMessage()
             ];
         }
     }

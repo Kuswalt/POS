@@ -451,6 +451,30 @@ try {
                     }
                     break;
                     
+                case 'restore-archived-sale':
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $post->restoreArchivedSale($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error restoring sale: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
+                    
                 default:
                     // For other POST requests, use JSON
                     $data = json_decode(file_get_contents("php://input"), true);
@@ -691,6 +715,21 @@ try {
                         echo json_encode([
                             "status" => false,
                             "message" => "Error fetching staff: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
+                case 'get-archived-sales':
+                    try {
+                        $result = $get->getArchivedSalesData();
+                        if ($result["status"]) {
+                            sendEncryptedResponse($result["data"]);
+                        } else {
+                            echo json_encode($result);
+                        }
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error: " . $e->getMessage()
                         ]);
                     }
                     break;
@@ -1001,6 +1040,29 @@ try {
                         echo json_encode([
                             "status" => false,
                             "message" => "Error deleting account: " . $e->getMessage()
+                        ]);
+                    }
+                    break;
+                case 'delete-archived-sale':
+                    try {
+                        $requestBody = json_decode(file_get_contents("php://input"), true);
+                        $encryptedData = $requestBody['data'] ?? null;
+                        
+                        if (!$encryptedData) {
+                            throw new Exception('No encrypted data received');
+                        }
+                        
+                        $data = $encryption->decrypt($encryptedData);
+                        $result = $delete->deleteArchivedSale($data);
+                        
+                        echo json_encode([
+                            "status" => true,
+                            "data" => $encryption->encrypt($result)
+                        ]);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            "status" => false,
+                            "message" => "Error deleting archived sale: " . $e->getMessage()
                         ]);
                     }
                     break;

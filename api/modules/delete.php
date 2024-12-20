@@ -484,4 +484,39 @@ class Delete {
             ];
         }
     }
+
+    public function deleteArchivedSale($data) {
+        global $conn;
+        
+        if (!isset($data['archive_id'])) {
+            return [
+                "status" => false,
+                "message" => "Archive ID is required"
+            ];
+        }
+        
+        try {
+            $sql = "DELETE FROM archived_sales WHERE archive_id = :archive_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':archive_id', $data['archive_id']);
+            $stmt->execute();
+            
+            if ($stmt->rowCount() === 0) {
+                return [
+                    "status" => false,
+                    "message" => "Archived sale not found"
+                ];
+            }
+            
+            return [
+                "status" => true,
+                "message" => "Archived sale deleted successfully"
+            ];
+        } catch (PDOException $e) {
+            return [
+                "status" => false,
+                "message" => "Failed to delete archived sale: " . $e->getMessage()
+            ];
+        }
+    }
 }

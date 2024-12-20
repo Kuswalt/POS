@@ -83,6 +83,11 @@
         return;
       }
   
+      if (newIngredient.quantity_needed <= 0) {
+        alert('Quantity must be greater than 0');
+        return;
+      }
+  
       try {
         const requestData = {
           product_id: productId,
@@ -172,10 +177,17 @@
             <input 
               type="number" 
               bind:value={newIngredient.quantity_needed}
-              placeholder="Quantity needed"
-              class="p-2 border rounded-md w-full"
-              min="0"
+              min="0.01"
               step="0.01"
+              placeholder="Quantity needed"
+              class="input-field"
+              required
+              on:input={(e) => {
+                if (e.currentTarget.value < 0) {
+                  e.currentTarget.value = Math.abs(e.currentTarget.value);
+                  newIngredient.quantity_needed = Math.abs(newIngredient.quantity_needed);
+                }
+              }}
             />
             <button 
               on:click={addIngredient}
