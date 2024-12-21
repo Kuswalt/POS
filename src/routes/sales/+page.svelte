@@ -1368,14 +1368,14 @@
               {#if filteredArchivedData && filteredArchivedData.length > 0}
                 {#each filteredArchivedData as sale}
                   <tr>
-                    <td>{sale.order_id}</td>
-                    <td>{sale.username}</td>
-                    <td>₱{parseFloat(sale.total_amount).toFixed(2)}</td>
-                    <td>{sale.payment_status}</td>
-                    <td>{new Date(sale.order_date).toLocaleString()}</td>
-                    <td>{new Date(sale.archived_date).toLocaleString()}</td>
-                    <td>{sale.archived_by_user}</td>
-                    <td class="actions">
+                    <td data-label="Order ID">{sale.order_id}</td>
+                    <td data-label="Staff">{sale.username}</td>
+                    <td data-label="Total Amount">₱{parseFloat(sale.total_amount).toFixed(2)}</td>
+                    <td data-label="Payment Status">{sale.payment_status}</td>
+                    <td data-label="Order Date">{new Date(sale.order_date).toLocaleString()}</td>
+                    <td data-label="Archived Date">{new Date(sale.archived_date).toLocaleString()}</td>
+                    <td data-label="Archived By">{sale.archived_by_user}</td>
+                    <td data-label="Actions" class="actions">
                       {#if $userStore.role === 1}
                         <button
                           on:click={() => restoreArchivedSale(sale.archive_id)}
@@ -1462,6 +1462,7 @@
     flex: 1;
     height: calc(100vh - 4rem);
     overflow-y: auto;
+   margin-top: 10px;
   }
 
   .charts-container {
@@ -1856,53 +1857,357 @@
     color: #dc2626;
     font-weight: 500;
   }
-   
-          .responsive-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 0.5rem;
-            overflow: hidden;
-          }
-        
-          .responsive-table th,
-          .responsive-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-          }
-        
-          .responsive-table th {
-            background: #d4a373;
-            color: white;
-            font-weight: 600;
-          }
-        
-          @media (max-width: 768px) {
-            .responsive-table th,
-            .responsive-table td {
-              display: block;
-              width: 100%;
-              box-sizing: border-box;
-            }
-        
-            .responsive-table td {
-              text-align: right;
-              padding-left: 50%;
-              position: relative;
-            }
-        
-            .responsive-table td::before {
-              content: attr(data-label);
-              position: absolute;
-              left: 0;
-              width: 50%;
-              padding-left: 1rem;
-              font-weight: bold;
-              text-align: left;
-              background: #f5f5f5;
-            }
-          }
+
+.responsive-table {
+ width: 100%;
+ border-collapse: collapse;
+ background: white;
+ border-radius: 0.5rem;
+ overflow: hidden;
+}
+
+.responsive-table th,
+.responsive-table td {
+ padding: 1rem;
+ text-align: left;
+ border-bottom: 1px solid #eee;
+}
+ .responsive-table th {
+ background: #d4a373;
+ color: white;
+ font-weight: 600;
+ }
+/* Add tablet-specific styles */
+  @media (max-width: 1244px) {
+ .responsive-table {
+   display: grid;
+   overflow-x: auto;
+   white-space: nowrap;
+ }
+  .responsive-table thead {
+   display: none; /* Hide table headers on tablet */
+ }
+  .responsive-table tbody tr {
+   display: block;
+   margin-bottom: 1rem;
+   border: 1px solid #d4a373;
+   border-radius: 0.5rem;
+   background: white;
+ }
+  .responsive-table td {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   padding: 0.75rem 1rem;
+   border-bottom: 1px solid #eee;
+   text-align: right;
+ }
+  .responsive-table td::before {
+   content: attr(data-label);
+   font-weight: 600;
+   margin-right: 1rem;
+   color: #666;
+   text-align: left;
+ }
+  /* Style specific columns for better readability */
+ .responsive-table td[data-label="Order ID"],
+ .responsive-table td[data-label="Staff"] {
+   background: #fefae0;
+ }
+  .responsive-table td[data-label="Total Amount"],
+ .responsive-table td[data-label="Amount Paid"] {
+   font-weight: 600;
+   color: #d4a373;
+ }
+  .responsive-table td[data-label="Actions"] {
+   justify-content: flex-end;
+   gap: 1rem;
+ }
+  /* Adjust discount badge display */
+ .responsive-table td[data-label="Discount Type"] .discount-badge {
+   width: auto;
+   min-width: 80px;
+ }
+  /* Improve spacing for action buttons */
+ .responsive-table td[data-label="Actions"] button {
+   padding: 0.5rem 1rem;
+   margin-left: 0.5rem;
+ }
+  }
+/* Mobile styles remain the same but with a different breakpoint */
+@media (max-width: 768px) {
+ .responsive-table td {
+   display: block;
+   width: 100%;
+   text-align: right;
+   padding-left: 50%;
+   position: relative;
+ }
+  .responsive-table td::before {
+   content: attr(data-label);
+   position: absolute;
+   left: 0;
+   width: 50%;
+   padding-left: 1rem;
+   font-weight: bold;
+   text-align: left;
+   background: #f5f5f5;
+ }
+}
+/* Add these additional styles for better tablet view */
+@media (min-width: 769px) and (max-width: 1024px) {
+ .sales-container {
+   padding: 1rem;
+ }
+  .filters {
+   display: grid;
+   grid-template-columns: repeat(2, 1fr);
+   gap: 0.75rem;
+   padding: 1rem;
+ }
+  .action-buttons {
+   display: grid;
+   grid-template-columns: repeat(2, 1fr);
+   gap: 0.75rem;
+ }
+  .pagination-controls {
+   flex-direction: row;
+   justify-content: space-between;
+   padding: 0.75rem;
+ }
+  .pagination-buttons {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0.5rem;
+   justify-content: flex-end;
+ }
+  /* Improve chart layout for tablets */
+ .charts-container .grid {
+   grid-template-columns: 1fr;
+   gap: 1rem;
+ }
+  .chart-wrapper {
+   min-height: 300px;
+ }
+
+
+.table-container {
+ overflow-x: auto;
+ -webkit-overflow-scrolling: touch;
+ margin: 0 -1rem;
+ padding: 0 1rem;
+}
+}
+/* Add visual feedback for touch devices */
+@media (hover: none) {
+ .responsive-table tbody tr:active {
+   background-color: #fefae0;
+ }
+  .pagination-button:active {
+   background-color: #d4a373;
+   color: white;
+ }
+}
+/* Archived Sales Table Specific Styles */
+.table-container {
+  margin: 1rem 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-container .responsive-table td[data-label] {
+  position: relative;
+}
+
+/* Tablet view for archived sales */
+@media (max-width: 1024px) {
+  .table-container .responsive-table {
+    display: grid;
+  }
+
+  .table-container .responsive-table thead {
+    display: none;
+  }
+
+  .table-container .responsive-table tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #d4a373;
+    border-radius: 0.5rem;
+  }
+
+  .table-container .responsive-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .table-container .responsive-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #666;
+  }
+
+  .table-container .responsive-table td[data-label="Order ID"],
+  .table-container .responsive-table td[data-label="Staff"] {
+    background: #fefae0;
+  }
+
+  .table-container .responsive-table td[data-label="Total Amount"] {
+    font-weight: 600;
+    color: #d4a373;
+  }
+
+  .table-container .responsive-table td[data-label="Order Date"],
+  .table-container .responsive-table td[data-label="Archived Date"] {
+    white-space: normal;
+    word-break: break-word;
+  }
+}
+
+/* Mobile view for archived sales */
+@media (max-width: 768px) {
+  .table-container .responsive-table tbody td {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .table-container .responsive-table tbody td::before {
+    margin-bottom: 0.5rem;
+    width: 100%;
+  }
+
+  .table-container .responsive-table td[data-label="Actions"] {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .table-container .responsive-table td[data-label="Actions"] button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+}
+
+/* Touch device feedback for archived sales */
+@media (hover: none) {
+  .table-container .responsive-table tbody tr:active {
+    background-color: #fefae0;
+  }
+
+  .table-container .responsive-table td[data-label="Actions"] button:active {
+    opacity: 0.8;
+  }
+}
+
+/* Empty state message for archived sales */
+.table-container .responsive-table td[colspan="8"] {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+}
+/* Tablet and Mobile view for archived sales */
+@media (max-width: 1244px) {
+  .table-container .responsive-table thead {
+    display: none; /* Hide table headers */
+  }
+
+  .table-container .responsive-table tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #d4a373;
+    border-radius: 0.5rem;
+    background: white;
+  }
+
+  .table-container .responsive-table tbody td {
+    display: grid;
+    grid-template-columns: 40% 60%;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+  }
+
+  .table-container .responsive-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #666;
+    text-align: center;
+  }
+
+  /* Special styling for actions column */
+  .table-container .responsive-table td[data-label="Actions"] {
+    gap: 0.5rem;
+        padding-left: 0rem;
+        display: flex;
+        justify-content: flex-start;
+        gap: -6.5rem;
+        flex-wrap: wrap;
+        flex-direction: column;
+  }
+
+  .table-container .responsive-table td[data-label="Actions"] button {
+    margin: 0;
+  }
+}
+
+/* Mobile specific styles */
+@media (max-width: 768px) {
+  .table-container .responsive-table tbody td {
+    display: block;
+    padding: 0.75rem 1rem;
+    position: relative;
+    padding-left: 45%;
+    text-align: center;
+    min-height: 50px;
+  }
+
+  .table-container .responsive-table tbody td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 1rem;
+    width: 40%;
+    padding-right: 10px;
+    font-weight: 600;
+    color: #666;
+    text-align: center;
+  }
+
+  /* Special handling for Actions column in mobile */
+  .table-container .responsive-table td[data-label="Actions"] {
+    padding-left: 1rem;
+    display: flex;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .table-container .responsive-table td[data-label="Actions"]::before {
+    width: 100%;
+    position: static;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Improve readability of dates */
+  .table-container .responsive-table td[data-label="Order Date"],
+  .table-container .responsive-table td[data-label="Archived Date"] {
+    white-space: normal;
+    word-break: break-word;
+    min-height: 70px;
+  }
+
+  /* Style alternating rows for better readability */
+  .table-container .responsive-table tbody tr:nth-child(even) td {
+    background: #fefae0;
+  }
+}
+
+
 </style>
 
 <!-- Add font import in the head of the document -->
