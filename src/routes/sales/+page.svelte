@@ -1654,7 +1654,7 @@
   }
 
   .btn-verify {
-    background: #4CAF50;
+    background: #d4a373;
     color: white;
     padding: 0.75rem 1.5rem;
     border-radius: 4px;
@@ -1665,7 +1665,7 @@
   }
 
   .btn-verify:hover {
-    background: #45a049;
+    background: #ccd5ae;
   }
 
   .btn-cancel {
@@ -1843,19 +1843,66 @@
   }
 
   .discount-badge.senior {
-    background-color: #93c5fd;
-    color: #1e40af;
+    background-color: #e9edc9;
+    color: #d4a373;
   }
 
   .discount-badge.pwd {
-    background-color: #fde68a;
-    color: #92400e;
+    background-color: #d4a373;
+    color: #fefae0;
   }
 
   .discount-amount {
     color: #dc2626;
     font-weight: 500;
   }
+   
+          .responsive-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+          }
+        
+          .responsive-table th,
+          .responsive-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+          }
+        
+          .responsive-table th {
+            background: #d4a373;
+            color: white;
+            font-weight: 600;
+          }
+        
+          @media (max-width: 768px) {
+            .responsive-table th,
+            .responsive-table td {
+              display: block;
+              width: 100%;
+              box-sizing: border-box;
+            }
+        
+            .responsive-table td {
+              text-align: right;
+              padding-left: 50%;
+              position: relative;
+            }
+        
+            .responsive-table td::before {
+              content: attr(data-label);
+              position: absolute;
+              left: 0;
+              width: 50%;
+              padding-left: 1rem;
+              font-weight: bold;
+              text-align: left;
+              background: #f5f5f5;
+            }
+          }
 </style>
 
 <!-- Add font import in the head of the document -->

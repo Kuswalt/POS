@@ -598,7 +598,7 @@
             Cancel
           </button>
           <button 
-            class="flex-1 py-2 px-4 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex-1 py-2 px-4 bg-[#d4a373] text-white rounded hover:bg-[#ccd5ae] disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={confirmTransaction}
             disabled={applyDiscount && !discountReason}
           >
@@ -648,7 +648,7 @@
     overflow-y: auto;
     padding-right: 0.5rem;
     scrollbar-width: thin;
-    scrollbar-color: #47cb50 #f5f5f5;
+    scrollbar-color: #faedcd #faedcd;
   }
 
   .cart-items::-webkit-scrollbar {
