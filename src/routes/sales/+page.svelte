@@ -1300,7 +1300,7 @@
             {#each displayedData as sale}
               <tr>
                 <td data-label="Order ID">{sale.order_id}</td>
-                <td data-label="Staff">{sale.username}</td>
+                <td data-label="Staffsss">{sale.username}</td>
                 <td data-label="Product">{sale.product_name}</td>
                 <td data-label="Quantity">{sale.quantity}</td>
                 <td data-label="Customer">{sale.customer_name}</td>
